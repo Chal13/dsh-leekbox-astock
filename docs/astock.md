@@ -45,6 +45,13 @@
 首次调用时懒启动，子进程退出后自动重启，插件卸载时 kill。
 环境变量 `LEEKBOX_PYTHON` 可指定解释器（默认 `python`）。
 
+## 插件内对话
+
+面板「对话」页通过 `/api/leekbox/chat`（发送）、`/chat/poll`（轮询回复）、`/chat/reset`（新对话）
+与宿主侧 Agent 会话通信：宿主用 `ctx.agents` 创建或恢复会话，会话 id 持久化在
+`$DSH_HOME/.leekbox-chat.json`；回复从会话事件日志读取，不需要 SSE。
+如果宿主没有提供 `ctx.agents`，接口会返回明确中文错误，面板其他功能不受影响。
+
 ## 已知边界
 
 - `chip_distribution` 是本地推演（OHLC + 换手率），不是券商实测持仓；用前复权价，看形态与相对变化。

@@ -25,6 +25,9 @@ export const API = {
 	analysis: "/api/leekbox/analysis/analyze",
 	analysisStream: "/api/leekbox/analysis/analyze/stream",
 	analysisModels: "/api/leekbox/analysis/models",
+	chat: "/api/leekbox/chat",
+	chatPoll: "/api/leekbox/chat/poll",
+	chatReset: "/api/leekbox/chat/reset",
 };
 
 const ERR_FALLBACK = "数据获取失败，请稍后重试";

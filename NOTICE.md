@@ -24,6 +24,9 @@
   （`lib/astock/*`、`lib/capabilities.js`、`lib/astock-tools.js`），含全局按域串行限流器
   （`lib/upstream.js`）、响应契约（`lib/contract.js`）与 3 端点 Python 边车
   （`python/astock_sidecar.py`）。契约文档见 `docs/astock.md`。
+- **插件内对话**：面板新增「对话」标签页，宿主侧用 `ctx.agents` 建/恢复一个 DSH Agent
+  会话（`lib/chat.js` + `/api/leekbox/chat*`），对话里可直接使用 astock 工具；显示名改为
+  「韭菜盒子大A版」以区分上游原版。
 
 ## 相对上游的改动点
 
