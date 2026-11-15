@@ -53,6 +53,7 @@ for (const suite of SUITES) {
 	const run = spawnSync(process.execPath, [join(root, suite)], {
 		cwd: root,
 		stdio: "inherit",
+		env: { ...process.env, LEEKBOX_TEST: "1" },
 	});
 	const ms = Date.now() - started;
 	const ok = run.status === 0;
