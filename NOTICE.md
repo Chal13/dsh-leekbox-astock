@@ -20,8 +20,10 @@
 
 （随实施进度更新）
 
-- **a-stock-data 能力层**（规划中）：按 skill 的 15 层端点分类注册 agent 工具，
-  含全局按域串行限流器、能力注册表与数据契约。详见 `docs/astock.md`。
+- **a-stock-data 能力层**：按 skill 的 15 层端点分类注册 6 个层工具 + 1 个目录工具
+  （`lib/astock/*`、`lib/capabilities.js`、`lib/astock-tools.js`），含全局按域串行限流器
+  （`lib/upstream.js`）、响应契约（`lib/contract.js`）与 3 端点 Python 边车
+  （`python/astock_sidecar.py`）。契约文档见 `docs/astock.md`。
 
 ## 相对上游的改动点
 

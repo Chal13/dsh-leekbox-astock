@@ -19,6 +19,7 @@ const SUITES = [
 	"sentiment-score-test.mjs",
 	"error-text-test.mjs",
 	"client-bundle-test.mjs",
+	"astock-tools-test.mjs",
 	"analysis-tab-test.mjs",
 	"analysis-data-test.mjs",
 	"p0-universe-delta-test.mjs",

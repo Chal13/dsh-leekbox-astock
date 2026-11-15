@@ -102,6 +102,21 @@ ln -s "<仓库路径>" "$DSH_HOME/profiles/web/node_modules/dsh-leekbox"
 
 所有数据由插件服务端（web profile 内的 cordis 插件）代理抓取并标准化，浏览器端同源调用 `/api/leekbox/*`，仅限本机 loopback 访问。数据仅供研究参考，不构成投资建议。
 
+## Agent 工具（a-stock-data）
+
+本 fork 把 [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill 的端点按能力分类注册为 agent 工具（6 层 + 目录），在 DSH 对话中直接取数：
+
+- `astock_signal` — 龙虎榜 / 解禁 / 板块资金流 / 行业排名
+- `astock_capital` — 两融 / 大宗 / 股东户数 / 分红 / 120 日资金流 / 筹码分布 CYQ / ETF 份额
+- `astock_limitup` — 涨停四池 / 涨停原因 / 打板情绪 / 监控池 / 日内异动
+- `astock_event` — 业绩预告 / 机构调研 / 增减持 / 回购 / 质押 / 新股日历
+- `astock_research` — 个股与行业研报 / 一致预期 EPS / 新浪研报列表
+- `astock_macro` — 社融 / PMI / 中债收益率曲线 / 回购定盘 / LPR / 宏观日历
+- `astock_catalog` — 查「层 → 端点 → 参数」
+
+服务端另提供 `GET /api/leekbox/capabilities`（机器可读清单）与 `GET /api/leekbox/cap?id=<action>`。
+详见 [docs/astock.md](docs/astock.md)。
+
 ## 交易时段与交易日历
 
 交易日不是"周一到周五"——国庆/春节这类**工作日假期**要靠真实日历才判得对。插件不从零维护节假日表，而是用**指数日 K 的日期序列反推交易日**（节假日没有 K 线），缓存 12 小时：
