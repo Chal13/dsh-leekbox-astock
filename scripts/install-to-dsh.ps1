@@ -1,12 +1,13 @@
-# 把源码目录发布到 DSH 插件安装目录。
+﻿# 把源码目录发布到 DSH 插件安装目录。
 #
 # 背景：源码（本仓库）与 DSH 实际加载的安装目录是**两份分开的拷贝**。
 # 日常开发在本仓库进行；验证通过后再用这个脚本同步到安装目录，然后重启 DSH。
 #
 # 用法（在仓库根目录或任意位置）：
-#   pwsh -File scripts\install-to-dsh.ps1                 # 同步到默认安装目录
-#   pwsh -File scripts\install-to-dsh.ps1 -RunTests       # 先跑测试再同步
-#   pwsh -File scripts\install-to-dsh.ps1 -Target D:\somewhere\else
+#   pwsh -File scripts\install-to-dsh.ps1                 # 同步到默认安装目录（PowerShell 7+）
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-to-dsh.ps1   # Windows PowerShell 5.1
+#   ... -RunTests                                          # 先跑测试再同步
+#   ... -Target D:\somewhere\else                          # 自定义安装目录
 #
 # 注意：
 # - 使用 robocopy /MIR，安装目录里多出来的文件会被删除（安装目录应只放构建产物，不要手写东西）。
