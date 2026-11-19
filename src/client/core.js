@@ -602,8 +602,39 @@ export function ToastStack({ toasts, onDismiss }) {
 // 模型配置是「全局设置」而不是「分析页」的一部分：面板头部 ⚙️ 入口打开设置弹窗，
 // 分析页只消费「是否已配置」。这里做一份订阅式单例，让面板、设置弹窗、分析页
 // 共享同一份状态，任何一处 save/load 后其余订阅者立刻同步（模式同 toast/confirm）。
-let analysisCfg = { configured: false, baseUrl: "", model: "", maskedKey: "", api: "openai" };
+// 模型来源两种：host = 用 DSH 自己接入的模型（不需要密钥），custom = 用户自填
+// 第三方 API。默认 host：用户装好 DSH 就能直接用「AI 分析」。
+let analysisCfg = {
+	mode: "host",
+	configured: false,
+	baseUrl: "",
+	model: "",
+	maskedKey: "",
+	api: "openai",
+	host: { available: false, provider: "", model: "", reasoningEffort: "" },
+};
 const analysisCfgListeners = new Set();
+
+/** 服务端配置响应 → 前端单例形状（老服务端没有 mode 时按"填了地址就算自定义"兼容）。 */
+function analysisConfigFrom(d) {
+	const baseUrl = d?.baseUrl ?? "";
+	const model = d?.model ?? "";
+	const mode = d?.mode === "custom" ? "custom" : d?.mode === "host" ? "host" : baseUrl !== "" && model !== "" ? "custom" : "host";
+	return {
+		mode,
+		configured: d?.configured === true,
+		baseUrl,
+		model,
+		maskedKey: d?.apiKey ?? "",
+		api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
+		host: {
+			available: d?.host?.available === true,
+			provider: d?.host?.provider ?? "",
+			model: d?.host?.model ?? "",
+			reasoningEffort: d?.host?.reasoningEffort ?? "",
+		},
+	};
+}
 
 function publishAnalysisConfig(next) {
 	analysisCfg = next;
@@ -626,28 +657,14 @@ export function onAnalysisConfig(fn) {
 /** 拉取服务端配置并广播（密钥只回脱敏值）。失败保持原状态，静默。 */
 export function loadAnalysisConfig() {
 	return api(API.analysisConfig)
-		.then((d) =>
-			publishAnalysisConfig({
-				configured: d?.configured === true,
-				baseUrl: d?.baseUrl ?? "",
-				model: d?.model ?? "",
-				maskedKey: d?.apiKey ?? "",
-				api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
-			})
-		)
+		.then((d) => publishAnalysisConfig(analysisConfigFrom(d)))
 		.catch(() => {});
 }
 
 /** 保存配置并广播结果；返回 Promise<响应体>（含脱敏密钥）。 */
 export function saveAnalysisConfig(body) {
 	return api(API.analysisConfig, { method: "POST", body }).then((d) => {
-		publishAnalysisConfig({
-			configured: d?.configured === true,
-			baseUrl: d?.baseUrl ?? "",
-			model: d?.model ?? "",
-			maskedKey: d?.apiKey ?? "",
-			api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
-		});
+		publishAnalysisConfig(analysisConfigFrom(d));
 		return d;
 	});
 }

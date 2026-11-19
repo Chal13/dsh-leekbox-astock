@@ -3,6 +3,44 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.5] - 2026-11-19
+
+### Changed
+
+- **「对话」页改用宿主直连链路 + 插件侧工具循环**：不再创建 `ctx.agents` 会话。定位过程记录：宿主 agent 路径的 `/messages` 请求确实发出并返回 200（SSE 已开始，最多读到 204KB），随后在 2~10 秒被中途 abort（抓到的 abort 栈只有 undici 内部帧），adapter 把该 AbortError 包装成 `DeepSeek Messages transport failed`；而同一进程里 `llm.stream` 直连（AI 分析）可连续流 100+ 秒不中断。因此对话改为直连环路，自己执行 `astock_*` 工具（单轮最多 4 步，结果截断 4000 字符）。
+- 对话历史落盘改为插件自有记录（`$DSH_HOME/.leekbox-chat.json` 的 `items`/`history`），不再依赖会话事件日志；面板协议不变。
+
+## [0.20.0-astock.4] - 2026-11-19
+
+### Added
+
+- **「AI 个股分析」直接使用 DSH 内置模型，不再要求填 API Key**：新增 `lib/host-llm.js`，通过宿主的 `llm` 服务 + `agentDefaultModel` 选择跑补全（与主窗口对话同一份凭据、同一条链路），插件不再向第三方发请求。`/api/leekbox/analysis/config` 新增 `mode`（`host` / `custom`）与 `host{available,provider,model}`；没配置过自定义 API 的用户默认就是 `host`。
+- **全局设置新增「DSH 内置模型（无需 API Key）」选项**：选中后隐藏协议/地址/模型/密钥输入，只显示当前 DSH 路由；切回自定义时原有配置保留。`/health` 增加 `analysisModel`（mode + host 详情）。
+- 内置模型调用带 effort 保护：缺省显式用 `low`，模型不支持该档位时自动去掉 effort 重试一次；流式与非流式两条分析路径都走同一适配层。
+
+### Fixed
+
+- **对话页示例提示停在过去某天**：空态示例里写死了 `2026-11-13 全市场龙虎榜`，时间一过就成了过期提示。现在按东八区当前时间动态生成（周末回退到最近周五），并在每次渲染时重算，面板跨零点也会跟着翻页。
+
+## [0.20.0-astock.3] - 2026-11-19
+
+### Fixed
+
+- **面板「对话」页仍报 `DeepSeek Messages transport failed`（真因）**：`serialize()` 在 `reasoningEffort` 缺省时回落到 **high**，而 `deepseek-account/deepseek-flash` 这条路由上 `output_config.effort=high` 会让传输层直接断连（5 次重试全 TRANSPORT）；同一宿主里能用的 GUI 会话请求头是 `effort=low`。上一版去掉 `maxTokens` 后又撞回 high。现在显式按宿主选择/`low` 下发 effort，请求配置与可用会话对齐。
+- **自动降档自愈**：回合以 TRANSPORT 失败时，插件用 `agent.model.select()` 换成下一档（low → off）把同一条消息自动重发一次；宿主没暴露 `select` 时换新 sessionId 重建，避免用户手动反复点。
+- **`/health` 的 chat 状态**带上实际 `effort` / `effortIndex`，路由串里也会带 `· effort=low`，下次出错能一眼看出用的哪一档。
+
+## [0.20.0-astock.2] - 2026-11-19
+
+### Fixed
+
+- **面板「对话」页稳定失败**：`lib/chat.js` 之前给 agent 钉死 `reasoningEffort: "low"` + `maxTokens: 32000`。宿主里正常的 GUI 会话从不指定这两个值（交给模型目录），钉死后一旦默认模型换成自定义 OpenAI 兼容路由（如 `unicom-yj`）就整轮返回 `404 status code (no body)`，换回 DeepSeek account 路由则表现为 `TRANSPORT`。现在只声明 `provider/model`，与 `dsh-plugin-weixin` 的 agent-bridge 保持一致；`installModelSelection` 也不再写死 effort。
+- **对话失败后的自愈**：某一回合以模型错误收场时，下一次发送会丢掉绑定的 agent，改用宿主默认装配（完全不传 agentOptions，与 GUI 新会话同一条路径）重建，避免永远卡在同一条坏路由上；`reset()`（新对话）会清掉这个降级状态。`/chat` 返回的 `route` 与 `/health` 的 `chat.status()` 都带上实际路由，报错文案也标注「（路由：provider/model）」。
+- **reset 后 sessionId 抖动**：`reset()` 写下的新 id 从未落盘过，`agents.resume` 必然失败，旧代码随即又换一个 id 去创建，导致面板显示的会话 id 与实际会话对不上。现在 resume 失败后用**同一个** id 创建；只有创建也失败（历史会话头部不可恢复）才换新 id。
+- **工具输出重复 note**：`formatResult()` 的「标量附加字段」循环没排除 `note`，后面又单独打印一次，`daily_dragon_tiger` 等端点会看到同一行注释出现两次。
+- **PMI 单位为空**：`nbs_pmi` 的 `unit` 是空串，工具层渲染成 `manufacturing_pmi=`。改为 `%`（并补上大/中/小型企业三项），`formatResult()` 同时兜底跳过空单位。
+- **push2 报错不可诊断**：东财 push2 网关按出口 IP 做连接级封锁时（三台镜像全部 RST），原来只回「行情接口暂时不可用」。现在明确写「可能已按出口 IP 限流，请稍后重试或更换网络/代理节点」。
+
 ## [0.14.0] - 2026-10-11
 
 ### Added

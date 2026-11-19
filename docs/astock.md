@@ -48,9 +48,31 @@
 ## 插件内对话
 
 面板「对话」页通过 `/api/leekbox/chat`（发送）、`/chat/poll`（轮询回复）、`/chat/reset`（新对话）
-与宿主侧 Agent 会话通信：宿主用 `ctx.agents` 创建或恢复会话，会话 id 持久化在
-`$DSH_HOME/.leekbox-chat.json`；回复从会话事件日志读取，不需要 SSE。
-如果宿主没有提供 `ctx.agents`，接口会返回明确中文错误，面板其他功能不受影响。
+读写插件自己的对话记录（落盘在 `$DSH_HOME/.leekbox-chat.json`）：
+
+- 模型走**宿主直连链路** `llm.stream`（与「AI 分析」同一份凭据、同一条路径），
+  不再创建 `ctx.agents` 会话。原因：实测宿主 agent 路径的 LLM 请求会在 2~10 秒被
+  中途 abort（adapter 包成 `TRANSPORT`），而同一进程里直连链路可稳定流式输出。
+- 工具调用由插件自己执行：把 `astock_*` 的 7 个工具转成 JSON Schema 交给模型，
+  单轮最多 4 步；工具结果截断到 4000 字符再回灌，避免吃爆上下文。
+- 对话历史只保留用户/助手文本（不保留工具中间态），落盘上限 80 条 / 模型侧 20 条。
+- 没有默认模型、模型不可用、限流、凭据失效都会回明确中文，面板其他功能不受影响。
+- 对话页示例里的「全市场龙虎榜」日期按东八区当前时间动态生成（周末回退到最近周五），
+  不会停留在写死的某一天。
+
+## AI 模型来源（无需 API Key）
+
+「AI 个股分析」默认使用 **DSH 自己接入的模型**，不再要求用户填第三方 API Key：
+
+- 服务端 `lib/host-llm.js` 通过宿主的 `llm` 服务 + `agentDefaultModel` 当前选择
+  发起补全，凭据与主窗口对话完全一致；插件不保存、不转发任何密钥。
+- `/api/leekbox/analysis/config` 的 `mode`：`host`（默认）或 `custom`（用户自填
+  API 地址/模型/密钥）。`host.available/provider/model` 回带宿主默认模型信息，
+  `/health` 的 `analysisModel` 也是同一份数据。
+- 全局设置里把「模型服务商」切到「DSH 内置模型（无需 API Key）」即可；切回
+  自定义时原有地址/模型/密钥保留。
+- effort 缺省显式用 `low`（DeepSeek account 路由上 `high` 会断连）；模型不支持
+  该档位时自动去掉 effort 重试一次。
 
 ## 已知边界
 

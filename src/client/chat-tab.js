@@ -6,12 +6,33 @@
 import { h, useCallback, useEffect, useRef, useState } from "./react.js";
 import { API, api, describeError } from "./core.js";
 
-const EXAMPLES = [
-	"今天涨停池和炸板率怎么样？",
-	"茅台最近两融、股东户数和分红",
-	"2026-11-13 全市场龙虎榜，按净买入排序",
-	"贵州茅台最新研报和一致预期 EPS",
-];
+/**
+ * 对话示例里的「最近一个交易日」。
+ *
+ * 原来这里写死了 `2026-11-13`，时间一过就变成一条永远指向过去某天的提示。
+ * 现在按东八区当前时间算：工作日就用当天，周末回退到最近的周五；法定节假日
+ * 仍可能没有榜（服务端会如实说明"该日尚未发布/非交易日"），但至少日期不会过期。
+ */
+function recentTradingDay() {
+	const beijing = new Date(Date.now() + 8 * 60 * 60 * 1000);
+	// 用 UTC 读取器避免宿主机时区干扰：上面已经手动加过 8 小时。
+	let day = beijing.getUTCDay(); // 0=周日
+	while (day === 0 || day === 6) {
+		beijing.setUTCDate(beijing.getUTCDate() - 1);
+		day = beijing.getUTCDay();
+	}
+	return beijing.toISOString().slice(0, 10);
+}
+
+/** 空态下的示例问题：日期动态生成，避免界面提示停留在过去某天。 */
+function chatExamples() {
+	return [
+		"今天涨停池和炸板率怎么样？",
+		`${recentTradingDay()} 全市场龙虎榜，按净买入排序`,
+		"茅台最近两融、股东户数和分红",
+		"贵州茅台最新研报和一致预期 EPS",
+	];
+}
 
 export function ChatTab({ active = true }) {
 	const [messages, setMessages] = useState([]);
@@ -23,6 +44,8 @@ export function ChatTab({ active = true }) {
 	const [ready, setReady] = useState(false);
 	const sinceRef = useRef(-1);
 	const listRef = useRef(null);
+	// 每次渲染重算：面板开着跨过零点时，示例日期也跟着翻页。
+	const examples = chatExamples();
 
 	const poll = useCallback(async () => {
 		try {
@@ -118,7 +141,7 @@ export function ChatTab({ active = true }) {
 						h(
 							"div",
 							{ className: "lkb_chatExamples" },
-							EXAMPLES.map((example) =>
+							examples.map((example) =>
 								h(
 									"button",
 									{ key: example, className: "lkb_chatExample", onClick: () => setInput(example) },

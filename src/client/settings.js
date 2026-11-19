@@ -23,6 +23,7 @@ const THEME_OPTIONS = [
  * Anthropic Messages API。models 是离线兜底，点「获取模型」用服务端拉真实列表覆盖。
  */
 const PROVIDERS = [
+	{ key: "host", label: "DSH 内置模型（无需 API Key）", api: "host", baseUrl: "", models: [] },
 	{ key: "deepseek", label: "DeepSeek", api: "openai", baseUrl: "https://api.deepseek.com/v1", models: ["deepseek-chat", "deepseek-reasoner"] },
 	{ key: "openai", label: "OpenAI", api: "openai", baseUrl: "https://api.openai.com/v1", models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "o3-mini"] },
 	{ key: "anthropic", label: "Anthropic Claude", api: "anthropic", baseUrl: "https://api.anthropic.com", models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-7-sonnet-latest", "claude-sonnet-4-20250514"] },
@@ -50,20 +51,29 @@ export function SettingsDialog({ onClose }) {
 	const [modelOptions, setModelOptions] = useState([]);
 	const [apiKey, setApiKey] = useState("");
 	const [maskedKey, setMaskedKey] = useState("");
+	// DSH 内置模型的可用性与实际跑的模型名（服务端从宿主默认模型读出）。
+	const [hostInfo, setHostInfo] = useState({ available: false, provider: "", model: "" });
 	const [saving, setSaving] = useState(false);
 	const [fetching, setFetching] = useState(false);
 	const [msg, setMsg] = useState("");
 
-	// 打开时从全局单例取当前配置；按 baseUrl 反查服务商，模型列表优先用预设兜底。
+	// 打开时从全局单例取当前配置；mode=host 直接选「DSH 内置模型」，
+	// 否则按 baseUrl 反查服务商，模型列表优先用预设兜底。
 	useEffect(() => {
 		const c = getAnalysisConfig();
-		const p = providerByBaseUrl(c.baseUrl);
+		setHostInfo(c.host ?? { available: false, provider: "", model: "" });
 		setBaseUrl(c.baseUrl);
 		setModel(c.model);
 		setMaskedKey(c.maskedKey);
 		setProtocol(c.api === "anthropic" ? "anthropic" : c.api === "responses" ? "responses" : "openai");
 		setApiKey("");
 		setMsg("");
+		if (c.mode === "host") {
+			setProvider("host");
+			setModelOptions([]);
+			return;
+		}
+		const p = providerByBaseUrl(c.baseUrl);
 		if (p !== null) {
 			setProvider(p.key);
 			setModelOptions(p.models.includes(c.model) ? p.models : [...p.models, c.model]);
@@ -89,9 +99,10 @@ export function SettingsDialog({ onClose }) {
 	const onProvider = (key) => {
 		setProvider(key);
 		const p = PROVIDERS.find((x) => x.key === key);
-		setProtocol(p?.api ?? "openai");
-		setBaseUrl(p?.baseUrl ?? "");
-		setModelOptions(p?.models ?? []);
+		// 内置模型不涉及协议/地址/密钥，保持协议为默认值即可。
+		setProtocol(key === "host" ? "openai" : (p?.api ?? "openai"));
+		setBaseUrl(key === "host" ? "" : (p?.baseUrl ?? ""));
+		setModelOptions(key === "host" ? [] : (p?.models ?? []));
 		setModel("");
 	};
 
@@ -131,6 +142,19 @@ export function SettingsDialog({ onClose }) {
 	};
 
 	const save = () => {
+		// 内置模型：只切换来源，不校验也不改动自定义字段（切回自定义时还能用原配置）。
+		if (provider === "host") {
+			setSaving(true);
+			setMsg("");
+			saveAnalysisConfig({ mode: "host" })
+				.then((d) => {
+					setHostInfo(d?.host ?? hostInfo);
+					setMsg(d?.configured === false ? "已切换，但 DSH 还没有默认模型：请先在 DSH 设置里选一个模型" : "已切换为 DSH 内置模型");
+				})
+				.catch((e) => setMsg(describeError(e)))
+				.finally(() => setSaving(false));
+			return;
+		}
 		const b = baseUrl.trim();
 		const m = model.trim();
 		if (b === "" || m === "") {
@@ -139,7 +163,7 @@ export function SettingsDialog({ onClose }) {
 		}
 		setSaving(true);
 		setMsg("");
-		saveAnalysisConfig({ baseUrl: b, apiKey: apiKey.trim(), model: m, api: protocol })
+		saveAnalysisConfig({ mode: "custom", baseUrl: b, apiKey: apiKey.trim(), model: m, api: protocol })
 			.then((d) => {
 				setMaskedKey(d?.apiKey ?? "");
 				setApiKey("");
@@ -207,62 +231,77 @@ export function SettingsDialog({ onClose }) {
 						PROVIDERS.map((p) => h("option", { key: p.key, value: p.key }, p.label))
 					)
 				),
-				h(
-					"div",
-					{ className: "lkb-anField", style: { marginBottom: 10 } },
-					h("div", { className: "lkb-anLabel" }, "API 协议（切服务商自动填，也可手动改）"),
-					h(
-						"select",
-						{ className: "lkb-input", value: protocol, onChange: (e) => setProtocol(e.target.value) },
-						h("option", { value: "openai" }, "OpenAI 兼容（/chat/completions）"),
-						h("option", { value: "responses" }, "OpenAI Responses（/v1/responses）"),
-						h("option", { value: "anthropic" }, "Anthropic 原生（/v1/messages）")
-					)
-				),
-				h(
-					"div",
-					{ className: "lkb-anField", style: { marginBottom: 10 } },
-					h("div", { className: "lkb-anLabel" }, "API 地址（可改）"),
-					h("input", {
-						className: "lkb-input",
-						value: baseUrl,
-						onInput: (e) => onBaseUrl(e.target.value),
-						placeholder: "https://api.deepseek.com/v1",
-						spellcheck: "false",
-					})
-				),
-				h(
-					"div",
-					{ className: "lkb-anField", style: { marginBottom: 10 } },
-					h("div", { className: "lkb-anLabel" }, "模型（下拉选择或直接输入）"),
-					h(
-						"div",
-						{ className: "lkb-anModelRow" },
-						h("input", {
-							className: "lkb-input",
-							value: model,
-							onInput: (e) => setModel(e.target.value),
-							placeholder: "选择或输入模型名",
-							list: "lkb-model-list",
-							spellcheck: "false",
-						}),
-						h("datalist", { id: "lkb-model-list" }, modelOptions.map((m) => h("option", { key: m, value: m }))),
-						h("button", { className: "lkb-btnGhost", onClick: fetchModels, disabled: fetching }, fetching ? "获取中…" : "获取模型")
-					)
-				),
-				h(
-					"div",
-					{ className: "lkb-anField" },
-					h("div", { className: "lkb-anLabel" }, "API 密钥（留空则不修改已存密钥）"),
-					h("input", {
-						className: "lkb-input",
-						type: "password",
-						value: apiKey,
-						onInput: (e) => setApiKey(e.target.value),
-						placeholder: maskedKey !== "" ? "已设置（留空保持不变）" : "sk-…",
-						autocomplete: "off",
-					})
-				),
+				provider === "host"
+					? h(
+							"div",
+							{ key: "host-model", className: "lkb-anField" },
+							h("div", { className: "lkb-anLabel" }, "当前模型（来自 DSH，无需填写密钥）"),
+							h(
+								"div",
+								{ className: "lkb-status" },
+								hostInfo.available
+									? `${hostInfo.provider}/${hostInfo.model}${hostInfo.reasoningEffort ? ` · effort=${hostInfo.reasoningEffort}` : ""}`
+									: "DSH 还没有默认模型：请先在 DSH 设置里选一个模型，再回来保存"
+							)
+						)
+					: [
+							h(
+								"div",
+								{ key: "protocol", className: "lkb-anField", style: { marginBottom: 10 } },
+								h("div", { className: "lkb-anLabel" }, "API 协议（切服务商自动填，也可手动改）"),
+								h(
+									"select",
+									{ className: "lkb-input", value: protocol, onChange: (e) => setProtocol(e.target.value) },
+									h("option", { value: "openai" }, "OpenAI 兼容（/chat/completions）"),
+									h("option", { value: "responses" }, "OpenAI Responses（/v1/responses）"),
+									h("option", { value: "anthropic" }, "Anthropic 原生（/v1/messages）")
+								)
+							),
+							h(
+								"div",
+								{ key: "baseUrl", className: "lkb-anField", style: { marginBottom: 10 } },
+								h("div", { className: "lkb-anLabel" }, "API 地址（可改）"),
+								h("input", {
+									className: "lkb-input",
+									value: baseUrl,
+									onInput: (e) => onBaseUrl(e.target.value),
+									placeholder: "https://api.deepseek.com/v1",
+									spellcheck: "false",
+								})
+							),
+							h(
+								"div",
+								{ key: "model", className: "lkb-anField", style: { marginBottom: 10 } },
+								h("div", { className: "lkb-anLabel" }, "模型（下拉选择或直接输入）"),
+								h(
+									"div",
+									{ className: "lkb-anModelRow" },
+									h("input", {
+										className: "lkb-input",
+										value: model,
+										onInput: (e) => setModel(e.target.value),
+										placeholder: "选择或输入模型名",
+										list: "lkb-model-list",
+										spellcheck: "false",
+									}),
+									h("datalist", { id: "lkb-model-list" }, modelOptions.map((m) => h("option", { key: m, value: m }))),
+									h("button", { className: "lkb-btnGhost", onClick: fetchModels, disabled: fetching }, fetching ? "获取中…" : "获取模型")
+								)
+							),
+							h(
+								"div",
+								{ key: "apiKey", className: "lkb-anField" },
+								h("div", { className: "lkb-anLabel" }, "API 密钥（留空则不修改已存密钥）"),
+								h("input", {
+									className: "lkb-input",
+									type: "password",
+									value: apiKey,
+									onInput: (e) => setApiKey(e.target.value),
+									placeholder: maskedKey !== "" ? "已设置（留空保持不变）" : "sk-…",
+									autocomplete: "off",
+								})
+							),
+						],
 				h(
 					"div",
 					{ className: "lkb-settingsActions" },
