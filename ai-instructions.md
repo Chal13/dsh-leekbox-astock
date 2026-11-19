@@ -16,24 +16,31 @@
 
 | 项 | 值 |
 |---|---|
-| 仓库 | `D:\DSH\Projects\leekbox-astock`（本插件源码） |
+| **源码目录（开发/提交）** | `D:\Github\dsh-leekbox-astock` —— git 工作区，改代码、跑测试、commit、push 都在这里 |
+| **安装目录（DSH 加载）** | `D:\DSH\Projects\leekbox-astock` —— DSH 实际加载的那一份拷贝；**不要在这里开发或手改** |
+| 发布方式 | `pwsh -File scripts\install-to-dsh.ps1 -RunTests`（源码 → 安装目录，robocopy /MIR），然后**完全重启 DSH** |
 | 宿主 profile | `C:\Users\Charl\.dsh\profiles\desktop`（**不是 README 里写的 web profile**） |
-| 安装方式 | profile `package.json` 里 `"dsh-leekbox-astock": "link:D:/DSH/Projects/leekbox-astock"`，并加入 `dsh.profile.bundles` |
+| 安装接线 | profile `package.json`：`"dsh-leekbox-astock": "link:D:/DSH/Projects/leekbox-astock"`，并加入 `dsh.profile.bundles`；`node_modules/dsh-leekbox-astock` 是指向安装目录的 **Junction** |
 | 宿主入口 | `lib/index.js`（`export { name, inject = ['webServer'], apply }`） |
 | 客户端产物 | `lib/client.js` 是**构建产物**，源码在 `src/client/*.js`，由 `build.mjs`（esbuild）打包 |
 | 版本位 | `/api/leekbox/health` 的 `version`；发布前同步 `package.json` 与 `CHANGELOG.md` |
-| 重启规则 | 改 `lib/**`（宿主代码）→ **必须完全退出并重开 DSH**；改 `src/client/**` → `node build.mjs` 后**刷新页面** |
+| 重启规则 | 改 `lib/**`（宿主代码）→ 同步到安装目录后**完全退出并重开 DSH**；改 `src/client/**` → `node build.mjs` 后同步 + 刷新页面 |
+
+**为什么源码与安装分开**：DSH 通过 profile 里的 Junction 加载安装目录；开发期在源码仓库里改、验证，确认无误后再同步过去。这样既不会因为实验性改动弄坏正在用的插件，也不受 git 工作区状态影响。
+
+> 单向同步是**有意的**：安装目录永远由脚本从源码覆盖（`/MIR` 会删掉安装目录里多出的文件），不要在安装目录里修 bug——改在源码里改，否则下次同步会被覆盖。
 
 **宿主进程的 GUI 端口每次重启都会变**（例如 50872 → 52878 → 61254），验证脚本不要写死端口，从运行时上下文或 `/health` 所在 URL 取。
 
 ### 常用命令
 
 ```powershell
-cd D:\DSH\Projects\leekbox-astock
+cd D:\Github\dsh-leekbox-astock
 node --check lib/index.js          # 逐个检查改过的宿主文件
 node --check lib/chat.js
 node build.mjs                     # 改了 src/client/** 才需要
 node run-tests.mjs                 # 22 个 suite；known: p1-f10-longhu-test（fixture 过期）
+pwsh -File scripts\install-to-dsh.ps1 -RunTests   # 验证通过后发布到安装目录
 ```
 
 测试约定：`run-tests.mjs` 会逐个跑 `*-test.mjs`；`LEEKBOX_TEST=1` 时上游限流直通（保证用例不互相拖）。新增能力应配一个纯函数/契约级测试，别只靠手测。
@@ -213,6 +220,7 @@ function toToolSchema(def) {
 - [ ] 改客户端 → `node build.mjs`
 - [ ] `node run-tests.mjs`（22 suites；known 不算失败）
 - [ ] 版本号 + `CHANGELOG.md`（Adds/Fixed 分开写，写清实测依据）
+- [ ] `pwsh -File scripts\install-to-dsh.ps1 -RunTests` 同步到安装目录
 - [ ] 重启 DSH（宿主代码）→ 用 HTTP 脚本实测 → 再向用户汇报
 - [ ] 删掉临时诊断代码/日志/marker
 
@@ -242,7 +250,7 @@ console.log(await j("/api/leekbox/cap?id=margin_trading&code=600519")); // 单�
 
 ## 9. 禁止事项
 
-1. ❌ 直接改 `C:\Users\Charl\.dsh\profiles\desktop\node_modules` 里的成品包（升级会被覆盖）——改本仓库，`link:` 已生效。
+1. ❌ 直接改 **安装目录**（`D:\DSH\Projects\leekbox-astock`）或 profile `node_modules` 里的成品包——改源码仓库，再跑 `scripts\install-to-dsh.ps1` 覆盖过去。
 2. ❌ 在 `lib/**` 里留临时诊断代码/日志到发布版本（要么删除，要么用 marker 文件严格门控并写进文档）。
 3. ❌ 用 PowerShell `Set-Content` 改含中文的 JSON/JS（编码 + BOM 双坑）；用编辑工具。
 4. ❌ 只跑 `node --check` 就宣称"功能验证通过"；构建产物也要 `test` 里的产物一致性检查。
