@@ -106,13 +106,48 @@ export function topWindow(list) {
 	return top;
 }
 
+/** 面板最小可用尺寸（再小表格就挤成一条线了）。 */
+const PANEL_MIN_W = 560;
+const PANEL_MIN_H = 360;
+/** 面板尺寸/位置的本地存储键。 */
+const PANEL_LAYOUT_KEY = "lkb.panel.layout";
+
+/** 读取上次保存的窗口布局；损坏或越界时退回默认（居中 + CSS 默认尺寸）。 */
+function readStoredPanelLayout() {
+	try {
+		const parsed = JSON.parse(localStorage.getItem(PANEL_LAYOUT_KEY) || "{}") ?? {};
+		const rawPos = parsed.pos;
+		const rawSize = parsed.size;
+		const pos =
+			rawPos !== null && typeof rawPos === "object" && Number.isFinite(rawPos.x) && Number.isFinite(rawPos.y)
+				? { x: rawPos.x, y: rawPos.y }
+				: null;
+		const size =
+			rawSize !== null && typeof rawSize === "object" && Number.isFinite(rawSize.w) && Number.isFinite(rawSize.h)
+				? { w: Math.max(PANEL_MIN_W, rawSize.w), h: Math.max(PANEL_MIN_H, rawSize.h) }
+				: null;
+		return { pos, size };
+	} catch {
+		return { pos: null, size: null };
+	}
+}
+
 export function LeekBoxPanel({ onClose }) {
 	const [tab, setTab] = useState("indices");
 	const [wins, setWins] = useState([]);
 	const [watchCodes, setWatchCodes] = useState([]);
 	const [watchBump, setWatchBump] = useState(0);
-	const [pos, setPos] = useState(null);
+	const [pos, setPos] = useState(() => readStoredPanelLayout().pos);
+	const [size, setSize] = useState(() => readStoredPanelLayout().size);
+	const [maximized, setMaximized] = useState(false);
+	const [collapsed, setCollapsed] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	// 面板尺寸/位置落在本地：下次打开保持上次的窗口布局。
+	useEffect(() => {
+		try {
+			localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify({ pos, size }));
+		} catch {}
+	}, [pos, size]);
 	// 全局 AI 模型配置（订阅式单例）：面板挂载时拉一次，设置弹窗/分析页共享。
 	const analysisCfg = useAnalysisConfig();
 	useEffect(() => {
@@ -149,6 +184,36 @@ export function LeekBoxPanel({ onClose }) {
 		window.addEventListener("pointerup", onUp);
 	};
 	const resetPos = () => setPos(null);
+
+	/** 右下角拖拽缩放：限制在视口内，并保留最小可用尺寸。 */
+	const onResizePointerDown = (e) => {
+		if (e.button !== 0) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const rect = cardRef.current !== null ? cardRef.current.getBoundingClientRect() : null;
+		if (rect === null) return;
+		const startX = e.clientX;
+		const startY = e.clientY;
+		const startW = rect.width;
+		const startH = rect.height;
+		const maxW = Math.max(PANEL_MIN_W, window.innerWidth - 16);
+		const maxH = Math.max(PANEL_MIN_H, window.innerHeight - 16);
+		const onMove = (ev) =>
+			setSize({
+				w: Math.min(Math.max(PANEL_MIN_W, startW + ev.clientX - startX), maxW),
+				h: Math.min(Math.max(PANEL_MIN_H, startH + ev.clientY - startY), maxH),
+			});
+		const onUp = () => {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", onUp);
+			document.body.style.userSelect = "";
+		};
+		document.body.style.userSelect = "none";
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onUp);
+	};
+	const toggleMaximize = () => setMaximized((v) => !v);
+	const toggleCollapse = () => setCollapsed((v) => !v);
 	// 行情/选股列表里的「💬」把股票写进对话草稿：这里负责切到「对话」页，
 	// 对话页挂载时会自己消费草稿并预填输入框。
 	useEffect(() => onChatDraft(() => setTab("chat")), []);
@@ -303,6 +368,16 @@ export function LeekBoxPanel({ onClose }) {
 							: tab === "chat"
 								? h(ChatTab, { active: true })
 								: h(NewsTab, { onOpen: openStock });
+	// 窗口形态：最大化（吸满视口留 8px）> 最小化（只剩标题栏）> 记住的尺寸 > CSS 默认。
+	const cardStyle = (() => {
+		if (maximized) {
+			return { left: 8, top: 8, right: 8, bottom: 8, width: "auto", height: "auto", transform: "none", maxWidth: "none", maxHeight: "none" };
+		}
+		const base = pos === null ? { left: "50%", top: "50%", transform: "translate(-50%,-50%)" } : { left: pos.x, top: pos.y };
+		if (collapsed) return { ...base, height: "auto", maxHeight: "none" };
+		if (size !== null) return { ...base, width: size.w, height: size.h, maxWidth: "none", maxHeight: "none" };
+		return base;
+	})();
 	return h(
 		"div",
 		{
@@ -318,21 +393,23 @@ export function LeekBoxPanel({ onClose }) {
 			{
 				ref: cardRef,
 				className: "lkb_card",
-				style: pos === null ? { left: "50%", top: "50%", transform: "translate(-50%,-50%)" } : { left: pos.x, top: pos.y },
+				style: cardStyle,
 			},
 			h(
 				"div",
-				{ className: "lkb_head", title: "拖动移动窗口 · 双击复位", onPointerDown: onHeadPointerDown, onDoubleClick: resetPos },
+				{ className: "lkb_head", title: "拖动移动窗口 · 双击复位 · 右下角拖动缩放", onPointerDown: onHeadPointerDown, onDoubleClick: resetPos },
 				h("span", { className: "lkb-headTitle" }, h("span", { className: "lkb-logo" }, "🥬"), "韭菜盒子大A版"),
 				h(
 					"div",
 					{ className: "lkb_headRight" },
 					h("span", { className: "lkb_mktStatus", "data-open": mkt.open ? "true" : "false", title: calendarHint() }, mkt.label),
+					h("button", { className: "lkb_settingsBtn", title: collapsed ? "展开面板" : "最小化（只留标题栏）", onClick: toggleCollapse }, collapsed ? "❐" : "—"),
+					h("button", { className: "lkb_settingsBtn", title: maximized ? "还原窗口" : "最大化", onClick: toggleMaximize }, maximized ? "❐" : "□"),
 					h("button", { className: "lkb_settingsBtn", title: "全局设置", onClick: () => setSettingsOpen(true) }, "⚙️"),
 					h("button", { className: "lkb_close", title: "关闭", onClick: onClose }, "✕")
 				)
 			),
-			h(
+			collapsed ? null : h(
 				"div",
 				{ className: "lkb_tabBar", role: "tablist", "aria-label": "韭菜盒子大A版面板", onKeyDown: onTabKeyDown },
 				h(
@@ -363,17 +440,20 @@ export function LeekBoxPanel({ onClose }) {
 					})
 				)
 			),
-			h(
+			collapsed ? null : h(
 			"div",
 			{ className: "lkb_body", id: "lkb-tabpanel", role: "tabpanel", "aria-labelledby": `lkb-tab-${tab}` },
 			h("div", { key: tab, className: "lkb_tabPanelIn" }, body)
 		),
-			h(
+			collapsed ? null : h(
 				"div",
 				{ className: "lkb_foot" },
 				h("span", null, "数据来源：腾讯财经 / 新浪财经 / 东方财富 / 金十数据"),
 				h("span", null, "仅供研究参考，不构成投资建议。股市有风险，入市需谨慎。")
-			)
+			),
+			!maximized && !collapsed
+				? h("div", { className: "lkb_resize", title: "拖动调整面板大小", onPointerDown: onResizePointerDown })
+				: null
 		),
 		wins.map((w) =>
 			h(StockDetailWindow, {

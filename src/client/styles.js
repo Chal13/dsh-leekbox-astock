@@ -13,6 +13,9 @@ const CSS = `
 .lkb_head{background:var(--dsw-alias-bg-base,#fff);align-items:center;gap:12px;padding:12px 18px;display:flex;border-bottom:1px solid var(--dsw-alias-border-l1,#e8e9ed);cursor:grab;touch-action:none;user-select:none}
 .lkb_head:active{cursor:grabbing}
 .lkb_headTitle{margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+/* 面板右下角缩放手柄（最大化 / 最小化时隐藏）。 */
+.lkb_resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:30;border-bottom-right-radius:14px;background:linear-gradient(135deg,transparent 0 45%,var(--dsw-alias-border-l2,#c9ced8) 45% 52%,transparent 52% 62%,var(--dsw-alias-border-l2,#c9ced8) 62% 69%,transparent 69%)}
+.lkb_resize:hover{background-color:var(--dsw-alias-bg-layer-1,#f2f3f5)}
 .lkb_headTitle .lkb-logo{font-size:18px}
 .lkb_headSub{color:var(--dsw-alias-label-secondary,#8a8f9c);font-size:11px;font-weight:400}
 .lkb_headRight{margin-left:auto;display:flex;align-items:center;gap:10px}

@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.10] - 2026-11-20
+
+### Added
+
+- **面板窗口可自由缩放 / 最大化 / 最小化**：右下角新增缩放手柄（限制在视口内、最小 560×360）；标题栏新增「—」最小化（只留标题栏，点❐展开）与「□」最大化/还原；尺寸与位置持久化在 `localStorage`（`lkb.panel.layout`），下次打开保持上次布局。拖动标题栏移动、双击标题栏复位位置保持不变。
+- 最大化时隐藏缩放手柄；最小化时隐藏标签栏/内容/底栏，避免无谓轮询与渲染。
+
+### Fixed
+
+- **自选/预警/分析配置偶发写入丢失**：Windows 上 `rename` 会被索引器或杀软短暂占用（EPERM/EBUSY），原实现一次失败就丢一条（并发 add 时表现为自选少一条，`p0-position-alerts` 偶发 23≠24）。新增 `writeJsonAtomic()`：唯一临时文件名 + 3 次重试 + 直接覆盖写兜底，三处存储（自选/预警/分析配置）统一使用。
+
 ## [0.20.0-astock.9] - 2026-11-20
 
 ### Added
