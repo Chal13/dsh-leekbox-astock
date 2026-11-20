@@ -428,15 +428,15 @@ const { sanitizeNewsText, pickStockNews, summarizeFflow, findInLonghu, pickSecto
 	check("定义了统一的 max_tokens 常量", src.includes("ANALYSIS_MAX_TOKENS = 4096"),
 		(src.match(/const ANALYSIS_MAX_TOKENS = \d+/) ?? [])[0]);
 
-	// 三种协议都必须带上限：Anthropic 必填；OpenAI 系不传则用服务端默认
-	// （可能远小于 4096，同样会截断）。
+	// 分析固定走宿主直连模型：两条路径（非流式 / 流式）都必须把上限传下去，
+	// 否则推理模型会把篇幅截断成半篇（静默失败）。
 	const uses = (src.match(/ANALYSIS_MAX_TOKENS/g) ?? []).length;
-	check("三种协议都显式带上限（含定义共 ≥4 处）", uses >= 4, `实测 ${uses} 处`);
-	check("Anthropic 用 maxTokens 形参", src.includes("maxTokens = ANALYSIS_MAX_TOKENS"));
-	check("OpenAI 流式用 max_tokens", /max_tokens: ANALYSIS_MAX_TOKENS/.test(src));
-	check("Responses 用 max_output_tokens", /max_output_tokens: ANALYSIS_MAX_TOKENS/.test(src));
-	check("非流式 OpenAI 也带上限", src.includes("messages, max_tokens: ANALYSIS_MAX_TOKENS, temperature"));
-	check("非流式 Responses 也带上限", src.includes("max_output_tokens: ANALYSIS_MAX_TOKENS, temperature"));
+	check("分析常量至少被定义与使用 3 处（定义 + 流式 + 非流式）", uses >= 3, `实测 ${uses} 处`);
+	const hostLimits = (src.match(/maxTokens: ANALYSIS_MAX_TOKENS/g) ?? []).length;
+	check("两条分析路径都显式传 maxTokens（≥2 处）", hostLimits >= 2, `实测 ${hostLimits} 处`);
+	check("非流式分析走宿主模型", src.includes("collectHostText(hostLlm"));
+	check("流式分析走宿主模型", src.includes("hostLlm.streamText({"));
+	check("分析不再自带第三方 API 传输层", !src.includes("callLlm") && !src.includes("llmStream("));
 	check("不再有写死的 2048", !src.includes("max_tokens: 2048") && !src.includes("maxTokens = 2048"));
 }
 

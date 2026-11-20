@@ -98,7 +98,8 @@ lib/upstream.js        按上游族串行限流（东财 ≥1s+抖动，腾讯 �
 lib/contract.js        统一响应契约（not_published / upstream_down / invalid_param）与 HTTP 映射
 lib/route-cache.js     TTL + 单飞 + stale-if-error；配合 calendar 的时段感知 TTL
 lib/calendar.js        交易日历（指数日 K 反推）+ 交易时段
-lib/host-llm.js        宿主模型直连（分析页用）：llm.stream + 选中路由 + 中文错误
+lib/host-llm.js        宿主模型直连（分析与对话用）：llm.stream + 选中路由 + 中文错误
+lib/model-catalog.js   DSH 模型目录桥：llm.listProviders()/listModels() + agentDefaultModel 默认选择
 lib/chat.js            面板对话：直连 llm.stream + 插件侧工具循环 + 落盘记录
 python/astock_sidecar.py  只承载确实需要 Python 的 3 个端点（社融/中债/回购定盘）
 ```
@@ -112,10 +113,11 @@ python/astock_sidecar.py  只承载确实需要 Python 的 3 个端点（社融/
 ### 4.1 「AI 分析」用宿主模型，不再要用户填 API Key
 
 - `lib/host-llm.js` 走 `ctx.get('llm').stream`，凭据与主窗口一致；插件不保存、不转发密钥。
-- 配置 `$DSH_HOME/.leekbox-analysis.json` 增加 `mode`：`host`（默认）| `custom`。
-  老配置里有 `baseUrl + model` 时兼容为 `custom`。
-- `/analysis/config` 回带 `mode` 与 `host{available, provider, model}`；全局设置里可切「DSH 内置模型（无需 API Key）」。
-- 结论：**面板里凡是"让用户填第三方 Key"的功能，都应优先考虑直连宿主模型。**
+- 设置页不自己维护服务商/密钥，而是**从宿主读**模型目录（`lib/model-catalog.js`）：
+  `llm.listProviders()` 出供应商、`llm.listModels(provider)` 出模型；选「跟随 DSH 默认」
+  则清空选择。配置文件 `$DSH_HOME/.leekbox-analysis.json` 只存 `{provider, model}`。
+- 结论：面板里凡是"让用户填第三方 Key"的功能，都应优先考虑直连宿主模型；
+  模型列表不要写死在插件里（DSH 里新增供应商后插件应自动可见）。
 
 ### 4.2 「面板对话」直连宿主 LLM + 插件自己执行工具（**不要**用 `ctx.agents`）
 

@@ -98,6 +98,8 @@ body[data-ds-dark-theme] .lkb-pct.lkb-down{background:#0f9d6e30;color:#63e6be}
 /* 行尾「放入对话」按钮：和星标并列，点击不触发行本身的详情窗。 */
 .lkb-ask{cursor:pointer;background:0 0;border:none;font-size:13px;line-height:1;padding:2px 4px;margin-left:2px;opacity:.55}
 .lkb-ask:hover{opacity:1}
+/* 设置弹窗里的说明文字（模型来自 DSH 等） */
+.lkb-hint{color:var(--dsw-alias-label-tertiary,#a2a7b3);font-size:11.5px;line-height:1.5}
 /* 名称/代码允许直接选中复制；行本身仍可点开详情。 */
 .lkb-name,.lkb-code{user-select:text}
 .lkb-searchWrap{position:relative;margin-bottom:12px}

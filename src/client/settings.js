@@ -1,13 +1,9 @@
-// 韭菜盒子 LeekBox — 客户端 bundle 源码：全局设置弹窗（AI 模型配置）
+// 韭菜盒子 LeekBox — 客户端 bundle 源码：全局设置弹窗（主题 + 选择 DSH 模型）
 // 由 build.mjs 打包进 lib/client.js（npm run build）；不要手改产物。
 //
-// 面板头部 ⚙️ 打开。配置读/写走 core.js 的全局单例（saveAnalysisConfig /
-// getAnalysisConfig），密钥只在服务端落盘，界面只显示脱敏值。
-//
-// 模型体系对齐 DSH 客户端的多 provider：`api: openai-completions` 是主流协议
-// （OpenAI / DeepSeek / Moonshot / 智谱 / 通义 / b.ai 等），另支持 Anthropic
-// Claude 原生 Messages API（`api: anthropic`）。用「服务商下拉 + 模型下拉（可
-// 手填）+ 获取模型」。
+// 面板头部 ⚙️ 打开。模型不再由插件自己配置（不填 API 地址/密钥）：这里只从
+// **DSH 已接入的模型**里挑一个，或「跟随 DSH 默认」。列表来自服务端
+// `/api/leekbox/analysis/config`（providers）与 `/api/leekbox/analysis/models`（某 provider 的模型）。
 import { h, useEffect, useState } from "./react.js";
 import { API, api, describeError, getAnalysisConfig, getTheme, saveAnalysisConfig, setTheme } from "./core.js";
 
@@ -18,69 +14,66 @@ const THEME_OPTIONS = [
 	{ key: "dark", label: "深色" },
 ];
 
-/**
- * 预设服务商。api 字段：openai = OpenAI 兼容 /chat/completions；anthropic =
- * Anthropic Messages API。models 是离线兜底，点「获取模型」用服务端拉真实列表覆盖。
- */
-const PROVIDERS = [
-	{ key: "host", label: "DSH 内置模型（无需 API Key）", api: "host", baseUrl: "", models: [] },
-	{ key: "deepseek", label: "DeepSeek", api: "openai", baseUrl: "https://api.deepseek.com/v1", models: ["deepseek-chat", "deepseek-reasoner"] },
-	{ key: "openai", label: "OpenAI", api: "openai", baseUrl: "https://api.openai.com/v1", models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "o3-mini"] },
-	{ key: "anthropic", label: "Anthropic Claude", api: "anthropic", baseUrl: "https://api.anthropic.com", models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-7-sonnet-latest", "claude-sonnet-4-20250514"] },
-	{ key: "moonshot", label: "Moonshot Kimi", api: "openai", baseUrl: "https://api.moonshot.cn/v1", models: ["moonshot-v1-8k", "moonshot-v1-32k", "kimi-k2-0711-preview"] },
-	{ key: "zhipu", label: "智谱 GLM", api: "openai", baseUrl: "https://open.bigmodel.cn/api/paas/v4", models: ["glm-4-flash", "glm-4-air", "glm-4-plus", "glm-4.5"] },
-	{ key: "qwen", label: "通义千问", api: "openai", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", models: ["qwen-turbo", "qwen-plus", "qwen-flash", "qwen-max"] },
-	{ key: "bai", label: "b.ai", api: "openai", baseUrl: "https://api.b.ai/v1", models: ["mimo-v2.5", "qwen3.8-flash"] },
-	{ key: "custom", label: "自定义", api: "openai", baseUrl: "", models: [] },
-];
+const EMPTY_EFFECTIVE = { provider: "", model: "", reasoningEffort: "", source: "dsh" };
 
-/** 按 baseUrl 反查预设服务商（忽略末尾斜杠差异）。 */
-function providerByBaseUrl(baseUrl) {
-	const b = String(baseUrl ?? "").trim().replace(/\/+$/, "");
-	if (b === "") return null;
-	return PROVIDERS.find((p) => p.baseUrl.replace(/\/+$/, "") === b) ?? null;
+/** 「provider/model」的人类可读串（缺字段用 — 顶替）。 */
+function routeLabel(entry) {
+	const provider = entry?.provider ?? "";
+	const model = entry?.model ?? "";
+	if (provider === "" && model === "") return "—";
+	return `${provider}/${model}`;
 }
 
 export function SettingsDialog({ onClose }) {
 	const [theme, setThemeState] = useState(getTheme());
-	const [provider, setProvider] = useState("custom");
-	// 注意：不能叫 `api`，否则会遮蔽从 core.js 导入的 api() 请求函数。
-	const [protocol, setProtocol] = useState("openai");
-	const [baseUrl, setBaseUrl] = useState("");
+	const [provider, setProvider] = useState("");
 	const [model, setModel] = useState("");
-	const [modelOptions, setModelOptions] = useState([]);
-	const [apiKey, setApiKey] = useState("");
-	const [maskedKey, setMaskedKey] = useState("");
-	// DSH 内置模型的可用性与实际跑的模型名（服务端从宿主默认模型读出）。
-	const [hostInfo, setHostInfo] = useState({ available: false, provider: "", model: "" });
+	const [models, setModels] = useState([]);
+	const [providers, setProviders] = useState([]);
+	const [effective, setEffective] = useState(EMPTY_EFFECTIVE);
+	const [loadingModels, setLoadingModels] = useState(false);
 	const [saving, setSaving] = useState(false);
-	const [fetching, setFetching] = useState(false);
 	const [msg, setMsg] = useState("");
 
-	// 打开时从全局单例取当前配置；mode=host 直接选「DSH 内置模型」，
-	// 否则按 baseUrl 反查服务商，模型列表优先用预设兜底。
+	/** 拉某个 provider 下 DSH 能发现的模型。 */
+	const loadModels = (id) => {
+		if (id === "") {
+			setModels([]);
+			return Promise.resolve([]);
+		}
+		setLoadingModels(true);
+		return api(`${API.analysisModels}?provider=${encodeURIComponent(id)}`)
+			.then((d) => {
+				const list = Array.isArray(d?.models)
+					? d.models
+							.filter((m) => m && typeof m.id === "string" && m.id !== "")
+							.map((m) => ({ id: m.id, name: typeof m.name === "string" && m.name !== "" ? m.name : m.id }))
+					: [];
+				setModels(list);
+				return list;
+			})
+			.catch((e) => {
+				setModels([]);
+				setMsg(describeError(e));
+				return [];
+			})
+			.finally(() => setLoadingModels(false));
+	};
+
+	// 打开时用全局单例（面板挂载时已拉过一次）初始化；已选 provider 但模型列表为空时补拉。
 	useEffect(() => {
 		const c = getAnalysisConfig();
-		setHostInfo(c.host ?? { available: false, provider: "", model: "" });
-		setBaseUrl(c.baseUrl);
-		setModel(c.model);
-		setMaskedKey(c.maskedKey);
-		setProtocol(c.api === "anthropic" ? "anthropic" : c.api === "responses" ? "responses" : "openai");
-		setApiKey("");
+		setProviders(Array.isArray(c.providers) ? c.providers : []);
+		setEffective(c.effective ?? EMPTY_EFFECTIVE);
+		setProvider(c.provider ?? "");
+		setModel(c.model ?? "");
+		setModels(Array.isArray(c.models) ? c.models : []);
 		setMsg("");
-		if (c.mode === "host") {
-			setProvider("host");
-			setModelOptions([]);
-			return;
+		if (typeof c.provider === "string" && c.provider !== "" && (!Array.isArray(c.models) || c.models.length === 0)) {
+			void loadModels(c.provider);
 		}
-		const p = providerByBaseUrl(c.baseUrl);
-		if (p !== null) {
-			setProvider(p.key);
-			setModelOptions(p.models.includes(c.model) ? p.models : [...p.models, c.model]);
-		} else {
-			setProvider("custom");
-			setModelOptions(c.model !== "" ? [c.model] : []);
-		}
+		// 只在打开时初始化一次。
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// 捕获阶段 ESC 关闭（阻止冒泡到面板自身的 ESC 链：详情窗 → 面板）。
@@ -95,79 +88,38 @@ export function SettingsDialog({ onClose }) {
 		return () => window.removeEventListener("keydown", onKey, true);
 	}, [onClose]);
 
-	// 切服务商：自动填 baseUrl + 协议 + 用该服务商的预设模型列表，模型名清空让用户选。
-	const onProvider = (key) => {
-		setProvider(key);
-		const p = PROVIDERS.find((x) => x.key === key);
-		// 内置模型不涉及协议/地址/密钥，保持协议为默认值即可。
-		setProtocol(key === "host" ? "openai" : (p?.api ?? "openai"));
-		setBaseUrl(key === "host" ? "" : (p?.baseUrl ?? ""));
-		setModelOptions(key === "host" ? [] : (p?.models ?? []));
+	const onProvider = (id) => {
+		setProvider(id);
 		setModel("");
-	};
-
-	// 手填 baseUrl：反向匹配服务商（粘一个 Anthropic 地址就自动切 Anthropic）。
-	const onBaseUrl = (v) => {
-		setBaseUrl(v);
-		const p = providerByBaseUrl(v);
-		if (p !== null) {
-			setProvider(p.key);
-			setProtocol(p.api);
-		} else {
-			setProvider("custom");
-		}
-	};
-
-	// 获取模型列表：走服务端（用当前 baseUrl + 协议 + 已填/已存的密钥）。
-	const fetchModels = () => {
-		const b = baseUrl.trim();
-		if (b === "" || !/^https?:\/\//i.test(b)) {
-			setMsg("请先填写正确的 API 地址");
-			return;
-		}
-		setFetching(true);
 		setMsg("");
-		api(API.analysisModels, { method: "POST", body: { baseUrl: b, apiKey: apiKey.trim(), api: protocol } })
-			.then((d) => {
-				const list = (d?.models ?? []).filter((x) => typeof x === "string" && x !== "");
-				if (list.length > 0) {
-					setModelOptions(list);
-					setMsg(`已获取 ${list.length} 个模型`);
-				} else {
-					setMsg("未获取到模型列表");
-				}
-			})
-			.catch((e) => setMsg(describeError(e)))
-			.finally(() => setFetching(false));
+		loadModels(id).then((list) => {
+			// 模型只有一个时直接选中，省一次点击。
+			if (list.length === 1) setModel(list[0].id);
+		});
 	};
 
 	const save = () => {
-		// 内置模型：只切换来源，不校验也不改动自定义字段（切回自定义时还能用原配置）。
-		if (provider === "host") {
-			setSaving(true);
-			setMsg("");
-			saveAnalysisConfig({ mode: "host" })
-				.then((d) => {
-					setHostInfo(d?.host ?? hostInfo);
-					setMsg(d?.configured === false ? "已切换，但 DSH 还没有默认模型：请先在 DSH 设置里选一个模型" : "已切换为 DSH 内置模型");
-				})
-				.catch((e) => setMsg(describeError(e)))
-				.finally(() => setSaving(false));
-			return;
-		}
-		const b = baseUrl.trim();
-		const m = model.trim();
-		if (b === "" || m === "") {
-			setMsg("API 地址与模型名不能为空");
+		if (provider !== "" && model.trim() === "") {
+			setMsg("请选择一个模型（或把供应商设为「跟随 DSH 默认」）");
 			return;
 		}
 		setSaving(true);
 		setMsg("");
-		saveAnalysisConfig({ mode: "custom", baseUrl: b, apiKey: apiKey.trim(), model: m, api: protocol })
+		saveAnalysisConfig({ provider, model: provider === "" ? "" : model.trim() })
 			.then((d) => {
-				setMaskedKey(d?.apiKey ?? "");
-				setApiKey("");
-				setMsg(d?.written === false ? "保存失败：配置未能写入，请重试" : "已保存");
+				const c = getAnalysisConfig();
+				setProviders(Array.isArray(c.providers) ? c.providers : providers);
+				setEffective(c.effective ?? EMPTY_EFFECTIVE);
+				setModels(Array.isArray(c.models) ? c.models : models);
+				setProvider(c.provider ?? "");
+				setModel(c.model ?? "");
+				if (d?.written === false) {
+					setMsg("保存失败：配置未能写入，请重试");
+				} else if (d?.configured === false) {
+					setMsg("已保存，但 DSH 当前没有可用模型：请先在 DSH 设置里配置模型");
+				} else {
+					setMsg(provider === "" ? "已改为跟随 DSH 默认模型" : "已保存");
+				}
 			})
 			.catch((e) => setMsg(describeError(e)))
 			.finally(() => setSaving(false));
@@ -188,7 +140,7 @@ export function SettingsDialog({ onClose }) {
 			h(
 				"div",
 				{ className: "lkb-settingsHead" },
-				h("span", { className: "lkb-settingsTitle" }, "⚙️ 全局设置 · AI 模型"),
+				h("span", { className: "lkb-settingsTitle" }, "⚙️ 全局设置"),
 				h("button", { className: "lkb_close", title: "关闭", onClick: onClose }, "✕")
 			),
 			h(
@@ -223,85 +175,49 @@ export function SettingsDialog({ onClose }) {
 				h("div", { className: "lkb-settingsSectionTitle" }, "AI 模型"),
 				h(
 					"div",
+					{ className: "lkb-hint", style: { marginBottom: 10 } },
+					"模型来自 DSH 已接入的供应商；插件不保存 API 地址或密钥。要新增模型，请先在 DSH 设置里配置。"
+				),
+				h(
+					"div",
 					{ className: "lkb-anField", style: { marginBottom: 10 } },
-					h("div", { className: "lkb-anLabel" }, "模型服务商"),
+					h("div", { className: "lkb-anLabel" }, "模型供应商"),
 					h(
 						"select",
 						{ className: "lkb-input", value: provider, onChange: (e) => onProvider(e.target.value) },
-						PROVIDERS.map((p) => h("option", { key: p.key, value: p.key }, p.label))
+						h("option", { value: "" }, `跟随 DSH 默认（${routeLabel(effective)}）`),
+						providers.map((p) => h("option", { key: p.id, value: p.id }, p.name))
 					)
 				),
-				provider === "host"
+				provider === ""
 					? h(
 							"div",
-							{ key: "host-model", className: "lkb-anField" },
-							h("div", { className: "lkb-anLabel" }, "当前模型（来自 DSH，无需填写密钥）"),
-							h(
-								"div",
-								{ className: "lkb-status" },
-								hostInfo.available
-									? `${hostInfo.provider}/${hostInfo.model}${hostInfo.reasoningEffort ? ` · effort=${hostInfo.reasoningEffort}` : ""}`
-									: "DSH 还没有默认模型：请先在 DSH 设置里选一个模型，再回来保存"
-							)
+							{ key: "effective", className: "lkb-anField" },
+							h("div", { className: "lkb-anLabel" }, "当前生效"),
+							h("div", { className: "lkb-status" }, effective.model === "" ? "DSH 还没有可用模型：请先在 DSH 设置里配置" : routeLabel(effective))
 						)
-					: [
-							h(
-								"div",
-								{ key: "protocol", className: "lkb-anField", style: { marginBottom: 10 } },
-								h("div", { className: "lkb-anLabel" }, "API 协议（切服务商自动填，也可手动改）"),
-								h(
-									"select",
-									{ className: "lkb-input", value: protocol, onChange: (e) => setProtocol(e.target.value) },
-									h("option", { value: "openai" }, "OpenAI 兼容（/chat/completions）"),
-									h("option", { value: "responses" }, "OpenAI Responses（/v1/responses）"),
-									h("option", { value: "anthropic" }, "Anthropic 原生（/v1/messages）")
-								)
-							),
-							h(
-								"div",
-								{ key: "baseUrl", className: "lkb-anField", style: { marginBottom: 10 } },
-								h("div", { className: "lkb-anLabel" }, "API 地址（可改）"),
-								h("input", {
-									className: "lkb-input",
-									value: baseUrl,
-									onInput: (e) => onBaseUrl(e.target.value),
-									placeholder: "https://api.deepseek.com/v1",
-									spellcheck: "false",
-								})
-							),
-							h(
-								"div",
-								{ key: "model", className: "lkb-anField", style: { marginBottom: 10 } },
-								h("div", { className: "lkb-anLabel" }, "模型（下拉选择或直接输入）"),
-								h(
-									"div",
-									{ className: "lkb-anModelRow" },
-									h("input", {
+					: h(
+							"div",
+							{ key: "model", className: "lkb-anField" },
+							h("div", { className: "lkb-anLabel" }, "模型"),
+							models.length > 0
+								? h(
+										"select",
+										{ className: "lkb-input", value: model, onChange: (e) => setModel(e.target.value) },
+										h("option", { value: "" }, "请选择模型…"),
+										models.map((m) => h("option", { key: m.id, value: m.id }, m.name))
+									)
+								: h("input", {
 										className: "lkb-input",
 										value: model,
 										onInput: (e) => setModel(e.target.value),
-										placeholder: "选择或输入模型名",
-										list: "lkb-model-list",
+										placeholder: loadingModels ? "正在读取 DSH 模型列表…" : "该供应商未暴露模型列表，可直接输入模型名",
 										spellcheck: "false",
-									}),
-									h("datalist", { id: "lkb-model-list" }, modelOptions.map((m) => h("option", { key: m, value: m }))),
-									h("button", { className: "lkb-btnGhost", onClick: fetchModels, disabled: fetching }, fetching ? "获取中…" : "获取模型")
-								)
-							),
-							h(
-								"div",
-								{ key: "apiKey", className: "lkb-anField" },
-								h("div", { className: "lkb-anLabel" }, "API 密钥（留空则不修改已存密钥）"),
-								h("input", {
-									className: "lkb-input",
-									type: "password",
-									value: apiKey,
-									onInput: (e) => setApiKey(e.target.value),
-									placeholder: maskedKey !== "" ? "已设置（留空保持不变）" : "sk-…",
-									autocomplete: "off",
-								})
-							),
-						],
+									})
+						),
+				provider !== "" && models.length > 0
+					? h("div", { className: "lkb-hint", style: { marginTop: 6 } }, `DSH 在该供应商下发现 ${models.length} 个模型。`)
+					: null,
 				h(
 					"div",
 					{ className: "lkb-settingsActions" },

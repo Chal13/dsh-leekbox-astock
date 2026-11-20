@@ -60,19 +60,27 @@
 - 对话页示例里的「全市场龙虎榜」日期按东八区当前时间动态生成（周末回退到最近周五），
   不会停留在写死的某一天。
 
-## AI 模型来源（无需 API Key）
+## AI 模型来源（使用 DSH 已接入的模型）
 
-「AI 个股分析」默认使用 **DSH 自己接入的模型**，不再要求用户填第三方 API Key：
+「AI 个股分析」与面板「对话」都使用 **DSH 自己接入的模型**，插件内不再配置任何
+第三方 API（没有地址、协议、密钥输入）：
 
-- 服务端 `lib/host-llm.js` 通过宿主的 `llm` 服务 + `agentDefaultModel` 当前选择
-  发起补全，凭据与主窗口对话完全一致；插件不保存、不转发任何密钥。
-- `/api/leekbox/analysis/config` 的 `mode`：`host`（默认）或 `custom`（用户自填
-  API 地址/模型/密钥）。`host.available/provider/model` 回带宿主默认模型信息，
-  `/health` 的 `analysisModel` 也是同一份数据。
-- 全局设置里把「模型服务商」切到「DSH 内置模型（无需 API Key）」即可；切回
-  自定义时原有地址/模型/密钥保留。
-- effort 缺省显式用 `low`（DeepSeek account 路由上 `high` 会断连）；模型不支持
-  该档位时自动去掉 effort 重试一次。
+- 服务端 `lib/host-llm.js` 通过宿主的 `llm` 服务发起补全（provider/model 由
+  `lib/model-catalog.js` 从宿主读取），凭据与主窗口对话完全一致。
+- `/api/leekbox/analysis/config`：
+  - `GET` 返回 `providers`（宿主 `llm.listProviders()`）、`models`（当前选中供应商的
+    `llm.listModels()`）、`provider/model`（插件里选的那一对，空 = 跟随 DSH 默认）、
+    `effective`（实际生效的 provider/model/effort/source）。
+  - `POST { provider?, model? }` 只保存选择：`provider=""` 表示「跟随 DSH 默认」；
+    否则要能在 DSH 的供应商/模型列表里找到。
+- `/api/leekbox/analysis/models?provider=<id>` 返回该供应商下 DSH 能发现的模型，
+  供设置页的模型下拉使用。
+- 全局设置里的「模型供应商 / 模型」两个下拉就是 DSH 的模型选择器；要新增模型请先在
+  DSH 设置里配置，插件会自动看到。
+- effort：优先用宿主选择里的档位，缺省显式用 `low`（DeepSeek account 路由上 `high`
+  会断连）；模型不支持该档位时自动去掉 effort 重试一次。
+- 配置文件仍是 `$DSH_HOME/.leekbox-analysis.json`，但只保留 `provider/model` 两个
+  字段；老配置里的 `baseUrl/apiKey/mode` 一律忽略。
 
 ## 已知边界
 

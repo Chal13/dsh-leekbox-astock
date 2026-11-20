@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.7] - 2026-11-20
+
+### Changed
+
+- **全局设置的模型选择改成「DSH 模型下拉」**：供应商列表来自宿主 `llm.listProviders()`，模型列表来自 `llm.listModels(provider)`，另有「跟随 DSH 默认」选项；只保存 `{provider, model}`，不再让用户填 API 地址 / 协议 / 密钥。
+- **移除插件内自定义 AI 配置**：删除 curl 传输层与 `callLlm` / `llmStream` / `listLlmModels` / 密钥脱敏；`/analysis/models` 由「POST 拉第三方 /models」改为「GET ?provider= 列 DSH 模型」；`/analysis/config` 返回 `providers/models/effective`；`/health.analysisModel` 改为 `{selected, effective}`。
+- 「AI 分析」与「对话」都按设置里的选择调用宿主模型（未选择时跟随 DSH 默认）；老配置里的 `baseUrl/apiKey/mode` 字段忽略。
+- README / docs 同步说明：模型在 DSH 里配置，插件不保存任何密钥。
+
 ## [0.20.0-astock.6] - 2026-11-20
 
 ### Added

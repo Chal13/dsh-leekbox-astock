@@ -602,37 +602,37 @@ export function ToastStack({ toasts, onDismiss }) {
 // 模型配置是「全局设置」而不是「分析页」的一部分：面板头部 ⚙️ 入口打开设置弹窗，
 // 分析页只消费「是否已配置」。这里做一份订阅式单例，让面板、设置弹窗、分析页
 // 共享同一份状态，任何一处 save/load 后其余订阅者立刻同步（模式同 toast/confirm）。
-// 模型来源两种：host = 用 DSH 自己接入的模型（不需要密钥），custom = 用户自填
-// 第三方 API。默认 host：用户装好 DSH 就能直接用「AI 分析」。
+//
+// 插件不保存第三方 API：`provider/model` 只是从 DSH 已接入的模型里挑一个；
+// 两者都空 = 跟随 DSH 默认模型（effective 是实际生效的那一对）。
 let analysisCfg = {
-	mode: "host",
 	configured: false,
-	baseUrl: "",
+	provider: "",
 	model: "",
-	maskedKey: "",
-	api: "openai",
-	host: { available: false, provider: "", model: "", reasoningEffort: "" },
+	effective: { provider: "", model: "", reasoningEffort: "", source: "dsh" },
+	providers: [],
+	models: [],
 };
 const analysisCfgListeners = new Set();
 
-/** 服务端配置响应 → 前端单例形状（老服务端没有 mode 时按"填了地址就算自定义"兼容）。 */
+/** 服务端配置响应 → 前端单例形状。 */
 function analysisConfigFrom(d) {
-	const baseUrl = d?.baseUrl ?? "";
-	const model = d?.model ?? "";
-	const mode = d?.mode === "custom" ? "custom" : d?.mode === "host" ? "host" : baseUrl !== "" && model !== "" ? "custom" : "host";
 	return {
-		mode,
 		configured: d?.configured === true,
-		baseUrl,
-		model,
-		maskedKey: d?.apiKey ?? "",
-		api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
-		host: {
-			available: d?.host?.available === true,
-			provider: d?.host?.provider ?? "",
-			model: d?.host?.model ?? "",
-			reasoningEffort: d?.host?.reasoningEffort ?? "",
+		provider: d?.provider ?? "",
+		model: d?.model ?? "",
+		effective: {
+			provider: d?.effective?.provider ?? "",
+			model: d?.effective?.model ?? "",
+			reasoningEffort: d?.effective?.reasoningEffort ?? "",
+			source: d?.effective?.source ?? "dsh",
 		},
+		providers: Array.isArray(d?.providers)
+			? d.providers.filter((p) => p && typeof p.id === "string" && p.id !== "").map((p) => ({ id: p.id, name: typeof p.name === "string" && p.name !== "" ? p.name : p.id }))
+			: [],
+		models: Array.isArray(d?.models)
+			? d.models.filter((m) => m && typeof m.id === "string" && m.id !== "").map((m) => ({ id: m.id, name: typeof m.name === "string" && m.name !== "" ? m.name : m.id }))
+			: [],
 	};
 }
 

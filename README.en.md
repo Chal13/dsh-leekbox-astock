@@ -41,8 +41,8 @@ An **open-source, self-hosted A-share dashboard that lives inside your AI worksp
 
 - **A-share only**: Shanghai / Shenzhen / Beijing listed stocks, ETFs and on-exchange funds, convertible bonds, LOFs. No HK, US or futures.
 - **Realtime while trading**: 30–60s polling per tab during session hours, no requests when the market is closed or the page is hidden.
-- **Zero setup**: free public endpoints — quotes work out of the box; only AI analysis needs a model key.
-- **Local only**: routes listen on `127.0.0.1`, data and keys stay in `$DSH_HOME/*.leekbox-*.json` on your machine.
+- **Zero setup**: free public endpoints — quotes work out of the box; AI analysis and in-panel chat use the models already connected to your DSH, so the plugin asks for no keys.
+- **Local only**: routes listen on `127.0.0.1`; the plugin stores no third-party credentials.
 
 ## Highlights
 
@@ -100,7 +100,7 @@ Clicking any stock name (including in the watchlist) opens a dedicated detail po
 - Search: local full-market index (Eastmoney push2 clist snapshot, ~8k instruments, 6h cache) + Tencent smartbox pinyin fallback + batched live quotes; falls back to Eastmoney `searchadapter` while the index warms up
 - News: Sina zhibo stream + Eastmoney fast news (`np-listapi.eastmoney.com`) + Jin10 flashes; cross-source dedup merges the same event into one item even when worded differently
 - **Capability layer** (reports / signals / capital & chips / limit-up / macro / event-driven): adapted from the open-source [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill by Simon Lin — 6 of its 15 layers, 37 endpoints, reimplemented here as Node adapters. Data still comes from the public endpoints this plugin calls directly; the skill's Python runtime is not required.
-- AI analysis: model is user-configured (OpenAI-compatible or Anthropic); stock data reuses the quote / K-line / F10 feeds above, and the request is proxied server-side through `/chat/completions` (key stays server-side, never sent to the browser)
+- AI analysis and in-panel chat: run on the models already connected to DSH (follows the DSH default unless you pick a provider/model in the panel's ⚙️ settings); the plugin stores no API base URL or key. Stock data reuses the quote / K-line / F10 feeds above.
 
 All requests are proxied by the plugin's host half (a cordis plugin inside the
 web profile) and served to the browser same-origin under `/api/leekbox/*`,
@@ -207,7 +207,7 @@ The screener is split across five files, with `lib/screener.js` as the facade (`
 Neither — it is a DeepSeek Harness plugin running inside the DSH **web profile**: the routes live in the DSH process, the UI is a panel in your browser. Installing means dropping the package into `$DSH_HOME/profiles/web/node_modules` and registering one line in `cordis.patch.yml`.
 
 **Do I need a paid market-data API or an account?**
-No. Quotes, indices, K-line, rankings, the dragon-tiger list and the news feed all come from free public endpoints (Tencent Finance / Eastmoney / Sina / Jin10). The only credential you may add is a model key for the AI analysis tab.
+No. Quotes, indices, K-line, rankings, the dragon-tiger list and the news feed all come from free public endpoints (Tencent Finance / Eastmoney / Sina / Jin10). AI analysis and chat use the models already configured in your DSH; the plugin needs no extra credentials.
 
 **How realtime is it?**
 30–60s polling per tab during session hours (details refresh along with open popups). Outside session hours or while the page is hidden, no requests are made; coming back triggers an immediate refetch.
@@ -215,8 +215,8 @@ No. Quotes, indices, K-line, rankings, the dragon-tiger list and the news feed a
 **Does it support Hong Kong, US or futures markets?**
 No. A-share only: Shanghai/Shenzhen/Beijing stocks, ETFs and on-exchange funds, convertible bonds, LOFs.
 
-**Are my watchlist and keys uploaded somewhere?**
-No. Routes listen on `127.0.0.1` only and the browser talks to them same-origin. Watchlist, positions, alerts and model config are written to `$DSH_HOME/.leekbox-*.json`; the model key stays server-side and is shown masked in the UI.
+**Are my watchlist and model settings uploaded somewhere?**
+No. Routes listen on `127.0.0.1` only and the browser talks to them same-origin. Watchlist, positions, alerts and the model selection are written to `$DSH_HOME/.leekbox-*.json`; the plugin stores no model keys.
 
 **Why does the header sometimes say 休市 (closed)?**
 That is the trading calendar reporting a non-trading day: a weekend, a public holiday (including makeup working days), or a day that has not opened yet. It is derived from the index daily K-line plus an intraday probe, so it distinguishes "closed today" from "today's bar is not out yet" — see [Trading session and calendar](#trading-session-and-calendar).
