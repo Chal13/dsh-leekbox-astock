@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.9] - 2026-11-20
+
+### Added
+
+- **「💬 放入对话」补齐到自选与涨停池**：自选行在 🔔 与 ★ 之间新增 💬（与行情/选股一致的使用方式：写入对话草稿 → 自动切到「对话」页并预填问题）；行情页顶部涨停池列表也补上同一按钮。选股结果表与事件热点股此前已包含。
+
 ## [0.20.0-astock.8] - 2026-11-20
 
 ### Fixed

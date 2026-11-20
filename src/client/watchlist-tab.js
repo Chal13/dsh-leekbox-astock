@@ -1,7 +1,7 @@
 // 韭菜盒子 LeekBox — 客户端 bundle 源码：自选页（持仓 + 预警 + 导入导出）
 // 由 build.mjs 打包进 lib/client.js（npm run build）；不要手改产物。
 import { createRoot, h, useCallback, useEffect, useRef, useState } from "./react.js";
-import { API, api, describeError, fmt, fmtAmount, fmtPct, fmtSign, lkbConfirm, notifyFailure, onToast, openOnRow, pushToast, ToastStack, trend, useTradingInterval } from "./core.js";
+import { API, api, AskButton, describeError, fmt, fmtAmount, fmtPct, fmtSign, lkbConfirm, notifyFailure, onToast, openOnRow, pushToast, ToastStack, trend, useTradingInterval } from "./core.js";
 import { StarButton } from "./star.js";
 
 /** Trigger a browser download for an in-memory blob. */
@@ -595,6 +595,7 @@ export function WatchlistTab({ onOpen, bump }) {
 									setAlertForm({ code: it.code, name: q?.name || it.name });
 								},
 							}, "🔔"),
+							h(AskButton, { code: it.code, name: q?.name || it.name }),
 							h(StarButton, { code: it.code, name: it.name, on: true, confirmText: `确定将 ${it.name}（${it.code}）移出自选吗？` })
 						)
 					);

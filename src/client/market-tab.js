@@ -386,7 +386,8 @@ export function MarketTab({ onOpen, watchCodes }) {
 							h("span", { className: "lkb-name" }, s.name),
 							h("span", { className: "lkb-code" }, s.code),
 							h("span", { className: "lkb-pill", style: { padding: "1px 8px", fontSize: 10 } }, s.board + "板"),
-							h("span", { className: "lkb-code", style: { marginLeft: "auto" } }, s.industry ?? "")
+							h("span", { className: "lkb-code", style: { marginLeft: "auto" } }, s.industry ?? ""),
+							h(AskButton, { code: s.code, name: s.name })
 						)
 					)
 				)
