@@ -97,7 +97,7 @@ ln -s "<仓库路径>" "$DSH_HOME/profiles/web/node_modules/dsh-leekbox"
 
 - 实时行情 / 指数 / 分时 / K线：腾讯财经（qt.gtimg.cn / web.ifzq.gtimg.cn / ifzq.gtimg.cn）
 - F10 财务摘要：东方财富 F10 报表（datacenter.eastmoney.com，双主机回退）
-- 榜单 / 选股：东方财富（push2.eastmoney.com，多镜像自动回退）
+- 榜单 / 选股：东方财富（push2.eastmoney.com，多镜像自动回退）；选股日 K 多源回退：腾讯 `fqkline` → 新浪 `getKLineData` → 东财日 K（腾讯偶发 WAF 拦截，新浪是主力备胎）
 - 搜索：本地全市场索引（东方财富 push2 clist 快照，约 8 千只标的，缓存 6 小时）+ 腾讯 smartbox 全拼兜底 + 批量实时行情（qt.gtimg.cn）；索引未就绪时自动回退东方财富 searchadapter
 - 7×24 快讯：新浪财经直播流（zhibo.sina.com.cn）+ 东方财富快讯（np-listapi.eastmoney.com）+ 金十数据（jin10.com）；重要资讯 = 各源官方标记（金十星标 / 新浪焦点）+ 关键词兜底（突发/重磅/重大/紧急/超预期）；跨源自动去重——同一事件多家源措辞不同（截断/扩写/换措辞）也按归一化文本 + 10 分钟时间窗内相似度合并为一条，保留信息最全的副本
 - **a-stock-data 能力层**（研报 / 信号 / 资金筹码 / 打板 / 宏观 / 事件驱动）：来自开源 skill [a-stock-data](https://github.com/simonlin1212/a-stock-data)（作者 Simon 林）。本 fork 按其「端点路由速查」的能力分类接入 6 层 37 个端点，数据仍由本插件直连各公开接口，运行时不需要该 skill 的 Python 环境；详见下方「Agent 工具（a-stock-data）」。

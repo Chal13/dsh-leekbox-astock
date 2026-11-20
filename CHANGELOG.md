@@ -3,6 +3,16 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.8] - 2026-11-20
+
+### Fixed
+
+- **选股一直提示「选股任务正在运行中」、实际不可用**：两个原因叠加——(1) 腾讯 `fqkline` 被 WAF 以 501 挑战页拦截（实测 2026-11），日 K 全部退回东财，而全局东财限流是 1 次/秒，800 只票要 10 分钟以上，界面看起来就是"永远在跑"；(2) `_progress.running` 只在 `finally` 复位，异常/页面刷新遗留 `true` 时没有任何兜底，选股会永久报忙。
+  - 日 K 取数链改为 **腾讯 → 新浪 `getKLineData` → 东财**；新浪实测 40~110ms，整源失败时冷却 3 分钟。
+  - 限流器新增 `profile` 维度：选股走独立队列 + 受限并发（新浪 6 并发 / 30ms 发起间隔，腾讯 3 并发 / 60ms），东财仍保持 1 秒慢节奏（IP 级封禁风险）。
+  - 进度快照增加 `updatedAt`；超过 5 分钟没有任何推进视为僵死任务，新扫描可直接接管，不再永久报忙。
+  - 实测：800 只票全量扫描 **97 秒**（此前 10~15 分钟量级），K 线阶段约 12 只/秒。
+
 ## [0.20.0-astock.7] - 2026-11-20
 
 ### Changed

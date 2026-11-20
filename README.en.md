@@ -96,7 +96,7 @@ Clicking any stock name (including in the watchlist) opens a dedicated detail po
 
 - Realtime quotes / indices / intraday / K-line: Tencent Finance (`qt.gtimg.cn`, `web.ifzq.gtimg.cn`, `ifzq.gtimg.cn`)
 - F10 fundamentals: Eastmoney F10 (`datacenter.eastmoney.com`, dual-host fallback)
-- Rankings / screener universe: Eastmoney (`push2.eastmoney.com`, mirror fallback; Sina as secondary source)
+- Rankings / screener universe: Eastmoney (`push2.eastmoney.com`, mirror fallback; Sina as secondary source). Screener daily K-line falls back across sources: Tencent `fqkline` → Sina `getKLineData` → Eastmoney daily K-line (Tencent intermittently serves a WAF challenge page).
 - Search: local full-market index (Eastmoney push2 clist snapshot, ~8k instruments, 6h cache) + Tencent smartbox pinyin fallback + batched live quotes; falls back to Eastmoney `searchadapter` while the index warms up
 - News: Sina zhibo stream + Eastmoney fast news (`np-listapi.eastmoney.com`) + Jin10 flashes; cross-source dedup merges the same event into one item even when worded differently
 - **Capability layer** (reports / signals / capital & chips / limit-up / macro / event-driven): adapted from the open-source [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill by Simon Lin — 6 of its 15 layers, 37 endpoints, reimplemented here as Node adapters. Data still comes from the public endpoints this plugin calls directly; the skill's Python runtime is not required.
