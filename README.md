@@ -21,6 +21,7 @@
 - [快速开始](#快速开始)
 - [六个标签页](#六个标签页)
 - [数据源](#数据源)
+- [Agent 工具（a-stock-data）](#agent-工具a-stock-data)
 - [交易时段与交易日历](#交易时段与交易日历)
 - [上游请求治理](#上游请求治理)
 - [写接口的跨站防护](#写接口的跨站防护)
@@ -99,11 +100,15 @@ ln -s "<仓库路径>" "$DSH_HOME/profiles/web/node_modules/dsh-leekbox"
 - 榜单 / 选股：东方财富（push2.eastmoney.com，多镜像自动回退）
 - 搜索：本地全市场索引（东方财富 push2 clist 快照，约 8 千只标的，缓存 6 小时）+ 腾讯 smartbox 全拼兜底 + 批量实时行情（qt.gtimg.cn）；索引未就绪时自动回退东方财富 searchadapter
 - 7×24 快讯：新浪财经直播流（zhibo.sina.com.cn）+ 东方财富快讯（np-listapi.eastmoney.com）+ 金十数据（jin10.com）；重要资讯 = 各源官方标记（金十星标 / 新浪焦点）+ 关键词兜底（突发/重磅/重大/紧急/超预期）；跨源自动去重——同一事件多家源措辞不同（截断/扩写/换措辞）也按归一化文本 + 10 分钟时间窗内相似度合并为一条，保留信息最全的副本
+- **a-stock-data 能力层**（研报 / 信号 / 资金筹码 / 打板 / 宏观 / 事件驱动）：来自开源 skill [a-stock-data](https://github.com/simonlin1212/a-stock-data)（作者 Simon 林）。本 fork 按其「端点路由速查」的能力分类接入 6 层 37 个端点，数据仍由本插件直连各公开接口，运行时不需要该 skill 的 Python 环境；详见下方「Agent 工具（a-stock-data）」。
 - AI 个股分析：模型由用户自行配置（OpenAI 兼容接口，如 OpenAI / DeepSeek 等），个股数据复用上面的行情 / K线 / F10 源汇总后送入模型；调用走服务端 `/chat/completions` 代理，密钥明文只在服务端落盘、绝不下发浏览器
 
 所有数据由插件服务端（web profile 内的 cordis 插件）代理抓取并标准化，浏览器端同源调用 `/api/leekbox/*`，仅限本机 loopback 访问。数据仅供研究参考，不构成投资建议。
 
 ## Agent 工具（a-stock-data）
+
+> **能力来源**：[a-stock-data](https://github.com/simonlin1212/a-stock-data) skill —— 面向 A 股的开源数据工具包（15 层 87 个端点，Markdown + 内嵌 Python），作者 **Simon 林**（X [@linsizhen](https://x.com/linsizhen)）。
+> 本 fork 只接入其中 6 层 37 个端点（见下），按原 skill 的「端点路由速查」做能力分类，并在本仓库以 Node 适配层重实现；运行时不需要该 skill 的 Python 环境，数据由插件直连各公开接口。
 
 本 fork 把 [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill 的端点按能力分类注册为 agent 工具（6 层 + 目录），在 DSH 对话中直接取数：
 
@@ -241,6 +246,7 @@ mklink /J "$DSH_HOME\profiles\web\node_modules\dsh-leekbox" "<本包路径>"
 - 发布记录：[Releases](https://github.com/SuCriss/dsh-leekbox/releases)
 - 问题反馈 / 功能建议：[Issues](https://github.com/SuCriss/dsh-leekbox/issues)
 - npm 包：[dsh-leekbox](https://www.npmjs.com/package/dsh-leekbox)
+- **数据能力来源**：[a-stock-data](https://github.com/simonlin1212/a-stock-data) skill · 作者 Simon 林 [@linsizhen](https://x.com/linsizhen)
 - English README：[README.en.md](README.en.md)
 - 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md) · 变更日志：[CHANGELOG.md](CHANGELOG.md)
 

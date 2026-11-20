@@ -21,6 +21,7 @@ English | [简体中文](README.md)
 - [Quick start](#quick-start)
 - [The six tabs](#the-six-tabs)
 - [Data sources](#data-sources)
+- [a-stock-data capability layer](#a-stock-data-capability-layer)
 - [Trading session and calendar](#trading-session-and-calendar)
 - [Upstream request governance](#upstream-request-governance)
 - [Cross-site protection for write routes](#cross-site-protection-for-write-routes)
@@ -98,11 +99,16 @@ Clicking any stock name (including in the watchlist) opens a dedicated detail po
 - Rankings / screener universe: Eastmoney (`push2.eastmoney.com`, mirror fallback; Sina as secondary source)
 - Search: local full-market index (Eastmoney push2 clist snapshot, ~8k instruments, 6h cache) + Tencent smartbox pinyin fallback + batched live quotes; falls back to Eastmoney `searchadapter` while the index warms up
 - News: Sina zhibo stream + Eastmoney fast news (`np-listapi.eastmoney.com`) + Jin10 flashes; cross-source dedup merges the same event into one item even when worded differently
+- **Capability layer** (reports / signals / capital & chips / limit-up / macro / event-driven): adapted from the open-source [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill by Simon Lin — 6 of its 15 layers, 37 endpoints, reimplemented here as Node adapters. Data still comes from the public endpoints this plugin calls directly; the skill's Python runtime is not required.
 - AI analysis: model is user-configured (OpenAI-compatible or Anthropic); stock data reuses the quote / K-line / F10 feeds above, and the request is proxied server-side through `/chat/completions` (key stays server-side, never sent to the browser)
 
 All requests are proxied by the plugin's host half (a cordis plugin inside the
 web profile) and served to the browser same-origin under `/api/leekbox/*`,
 loopback-only. For research reference only — not investment advice.
+
+## a-stock-data capability layer
+
+The `astock_*` agent tools (reports, dragon-tiger board, margin trading, limit-up pools, macro rates, event-driven datasets …) are adapted from [a-stock-data](https://github.com/simonlin1212/a-stock-data), an open-source A-share data toolkit (15 layers / 87 endpoints, published as Markdown with embedded Python) by **Simon Lin** ([@linsizhen](https://x.com/linsizhen)). This fork adopts 6 layers (37 endpoints), classified the same way as the skill's endpoint routing table, and reimplements them as Node adapters, so the skill's Python environment is not needed at runtime. See [docs/astock.md](docs/astock.md).
 
 ## Trading session and calendar
 
@@ -226,6 +232,7 @@ It gives up data depth (no Level-2, no tick-by-tick, no full financial database)
 - Releases: https://github.com/SuCriss/dsh-leekbox/releases
 - Issues: https://github.com/SuCriss/dsh-leekbox/issues
 - npm: https://www.npmjs.com/package/dsh-leekbox
+- **Capability source**: [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill by Simon Lin ([@linsizhen](https://x.com/linsizhen))
 - 简体中文 README: [README.md](README.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Changelog: [CHANGELOG.md](CHANGELOG.md)
 
