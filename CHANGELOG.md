@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.6] - 2026-11-20
+
+### Added
+
+- **行情/选股列表可直接把股票放进对话**：每行尾部新增「💬」按钮，点击后把「名称（代码）」写入对话草稿，面板自动切到「对话」页并预填问题（如「帮我看看 贵州茅台（sh600519）：最近走势、资金面和消息面怎么样？」）。覆盖行情榜单、搜索下拉、龙虎榜、选股结果表、事件热点股。
+- **名称/代码支持选中复制**：`.lkb-name` / `.lkb-code` 改为 `user-select:text`，行点击仍打开详情，但不再阻止拖选复制。
+
 ## [0.20.0-astock.5] - 2026-11-19
 
 ### Changed

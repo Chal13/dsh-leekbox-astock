@@ -1,7 +1,7 @@
 // 韭菜盒子 LeekBox — 客户端 bundle 源码：选股页（评分 + 多策略交叉）
 // 由 build.mjs 打包进 lib/client.js（npm run build）；不要手改产物。
 import { h, useEffect, useRef, useState } from "./react.js";
-import { API, api, describeError, fmt, fmtPct, isWatched, openOnRow, trend } from "./core.js";
+import { API, api, AskButton, describeError, fmt, fmtPct, isWatched, openOnRow, trend } from "./core.js";
 import { StarButton } from "./star.js";
 
 // 选股面板的信号/策略元数据以服务端为唯一来源（GET /screener/meta，定义见
@@ -378,7 +378,8 @@ export function ScreenerTab({ onOpen, watchCodes }) {
 																h("span", { className: "lkb-code" }, s.code),
 																h("span", { className: "lkb-eventPrice " + trend(s.changePct) }, s.price === null || s.price === void 0 ? "—" : fmt(s.price)),
 																h("span", { className: "lkb-eventPct " + trend(s.changePct) }, s.changePct === null || s.changePct === void 0 ? "—" : fmtPct(s.changePct)),
-																h(StarButton, { code: s.code, name: s.name, on: isWatched(watchSet, s.code), confirmText: `确定将 ${s.name}（${s.code}）移出自选吗？` })
+																h(StarButton, { code: s.code, name: s.name, on: isWatched(watchSet, s.code), confirmText: `确定将 ${s.name}（${s.code}）移出自选吗？` }),
+																h(AskButton, { code: s.code, name: s.name })
 															)
 														)
 													)
@@ -633,7 +634,7 @@ export function ScreenerTab({ onOpen, watchCodes }) {
 											(mode === "multi" ? r.strategies ?? [] : mode === "factor" ? r.factors ?? [] : r.signals ?? []).length > 3 ? h("span", { className: "lkb-signalMore", key: "__more" }, `+${(mode === "multi" ? r.strategies ?? [] : mode === "factor" ? r.factors ?? [] : r.signals ?? []).length - 3}`) : null
 										)
 									),
-									h("td", null, h(StarButton, { code: r.code, name: r.name, on: isWatched(watchSet, r.code), confirmText: `确定将 ${r.name}（${r.code}）移出自选吗？` }))
+									h("td", null, h(StarButton, { code: r.code, name: r.name, on: isWatched(watchSet, r.code), confirmText: `确定将 ${r.name}（${r.code}）移出自选吗？` }), h(AskButton, { code: r.code, name: r.name }))
 								)
 							)
 						)

@@ -95,6 +95,11 @@ body[data-ds-dark-theme] .lkb-pct.lkb-down{background:#0f9d6e30;color:#63e6be}
 .lkb-star{cursor:pointer;background:0 0;border:none;font-size:14px;padding:2px 4px;opacity:.55}
 .lkb-star:hover{opacity:1}
 .lkb-star[data-on="true"]{opacity:1}
+/* 行尾「放入对话」按钮：和星标并列，点击不触发行本身的详情窗。 */
+.lkb-ask{cursor:pointer;background:0 0;border:none;font-size:13px;line-height:1;padding:2px 4px;margin-left:2px;opacity:.55}
+.lkb-ask:hover{opacity:1}
+/* 名称/代码允许直接选中复制；行本身仍可点开详情。 */
+.lkb-name,.lkb-code{user-select:text}
 .lkb-searchWrap{position:relative;margin-bottom:12px}
 .lkb-searchRow{display:flex;gap:8px;align-items:center;position:relative;z-index:31}
 /* Opaque underlay: some DSH skins remap --dsw-alias-bg-base to a translucent

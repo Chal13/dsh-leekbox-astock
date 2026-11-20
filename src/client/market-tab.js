@@ -1,7 +1,7 @@
 // 韭菜盒子 LeekBox — 客户端 bundle 源码：行情页（搜索 + 榜单 + 板块 + 龙虎榜）
 // 由 build.mjs 打包进 lib/client.js（npm run build）；不要手改产物。
 import { h, useCallback, useEffect, useRef, useState } from "./react.js";
-import { API, api, cnMarket, describeError, fmt, fmtAmount, fmtPct, fmtSign, fmtYi, isWatched, openOnRow, trend, useTradingInterval } from "./core.js";
+import { API, api, AskButton, cnMarket, describeError, fmt, fmtAmount, fmtPct, fmtSign, fmtYi, isWatched, openOnRow, trend, useTradingInterval } from "./core.js";
 import { StarButton } from "./star.js";
 
 /** 本机时区的今天（YYYY-MM-DD）。
@@ -111,7 +111,7 @@ function SearchResultsCard({ hits, loading, error, source, kw, watchSet, onOpen,
 									? null
 									: h("span", { className: "lkb-srPct" }, fmtPct(s.changePct))
 							),
-							h("span", { className: "lkb-srStar" }, h(StarButton, { code: s.code, name: s.name, on: isWatched(watchSet, s.code), confirmText: `确定将 ${s.name}（${s.code}）移出自选吗？` }))
+							h("span", { className: "lkb-srStar" }, h(StarButton, { code: s.code, name: s.name, on: isWatched(watchSet, s.code), confirmText: `确定将 ${s.name}（${s.code}）移出自选吗？` }), h(AskButton, { code: s.code, name: s.name }))
 						);
 					})
 				)
@@ -499,7 +499,7 @@ export function MarketTab({ onOpen, watchCodes }) {
 								h("td", { className: trend(r.netflow) }, fmtYi(r.netflow)),
 								h("td", null, r.turnoverRate === null ? "—" : fmt(r.turnoverRate) + "%"),
 								h("td", null, r.pe === null ? "—" : fmt(r.pe)),
-								h("td", null, h(StarButton, { code: r.code, name: r.name, on: isWatched(watchSet, r.code), confirmText: `确定将 ${r.name}（${r.code}）移出自选吗？` }))
+								h("td", null, h(StarButton, { code: r.code, name: r.name, on: isWatched(watchSet, r.code), confirmText: `确定将 ${r.name}（${r.code}）移出自选吗？` }), h(AskButton, { code: r.code, name: r.name }))
 							)
 						)
 					)
@@ -569,7 +569,7 @@ export function MarketTab({ onOpen, watchCodes }) {
 												h("td", null, fmt(r.close)),
 												h("td", null, h("span", { className: "lkb-pct " + trend(r.changePct) }, fmtPct(r.changePct))),
 												h("td", { className: trend(r.netAmt) }, fmtYi(r.netAmt)),
-												h("td", { className: "lkb-code" }, r.reason)
+												h("td", { className: "lkb-code" }, r.reason, h(AskButton, { code: r.code, name: r.name }))
 											)
 										)
 							)

@@ -1,7 +1,7 @@
 // 韭菜盒子 LeekBox — 客户端 bundle 源码：主面板（标签页 + 弹窗管理 + 拖拽 + 预警 toast）
 // 由 build.mjs 打包进 lib/client.js（npm run build）；不要手改产物。
 import { createRoot, h, useCallback, useEffect, useRef, useState } from "./react.js";
-import { API, api, calendarHint, closeConfirm, ConfirmDialog, confirmListeners, loadAnalysisConfig, marketOpenLabel, normCode, onToast, ToastStack, useAnalysisConfig, useInterval } from "./core.js";
+import { API, api, calendarHint, closeConfirm, ConfirmDialog, confirmListeners, loadAnalysisConfig, marketOpenLabel, normCode, onChatDraft, onToast, ToastStack, useAnalysisConfig, useInterval } from "./core.js";
 import { IndicesTab } from "./indices-tab.js";
 import { MarketTab } from "./market-tab.js";
 import { WatchlistTab } from "./watchlist-tab.js";
@@ -149,6 +149,9 @@ export function LeekBoxPanel({ onClose }) {
 		window.addEventListener("pointerup", onUp);
 	};
 	const resetPos = () => setPos(null);
+	// 行情/选股列表里的「💬」把股票写进对话草稿：这里负责切到「对话」页，
+	// 对话页挂载时会自己消费草稿并预填输入框。
+	useEffect(() => onChatDraft(() => setTab("chat")), []);
 	// z 上限：必须低于确认遮罩(2147483646)与 toast(2147483647)的置顶层，给它们
 	// 各留一档余量，避免长期开大量窗口后 z 溢出到这两层之上。
 	const Z_MAX = 2147483644;

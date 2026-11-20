@@ -4,7 +4,7 @@
 // agent session. Replies are polled from the durable session event log; no SSE
 // plumbing and no second chat application is mounted.
 import { h, useCallback, useEffect, useRef, useState } from "./react.js";
-import { API, api, describeError } from "./core.js";
+import { API, api, consumeChatDraft, describeError, onChatDraft } from "./core.js";
 
 /**
  * 对话示例里的「最近一个交易日」。
@@ -44,8 +44,30 @@ export function ChatTab({ active = true }) {
 	const [ready, setReady] = useState(false);
 	const sinceRef = useRef(-1);
 	const listRef = useRef(null);
+	const inputRef = useRef(null);
 	// 每次渲染重算：面板开着跨过零点时，示例日期也跟着翻页。
 	const examples = chatExamples();
+
+	// 行情/选股页的「💬」把股票写进对话草稿：首次进入本页时消费一次，
+	// 已打开时通过订阅实时写入输入框，用户可以直接发或再改。
+	useEffect(() => {
+		const apply = (text) => {
+			if (typeof text !== "string" || text === "") return;
+			setInput(text);
+			// 等 React 把值渲染进 textarea 后再聚焦，并把光标放到末尾。
+			setTimeout(() => {
+				const node = inputRef.current;
+				if (node === null) return;
+				node.focus();
+				const end = node.value.length;
+				try {
+					node.setSelectionRange(end, end);
+				} catch {}
+			}, 0);
+		};
+		apply(consumeChatDraft());
+		return onChatDraft(apply);
+	}, []);
 
 	const poll = useCallback(async () => {
 		try {
@@ -165,6 +187,7 @@ export function ChatTab({ active = true }) {
 			{ className: "lkb_chatComposer" },
 			h("textarea", {
 				className: "lkb_chatInput",
+				ref: inputRef,
 				value: input,
 				placeholder: "问点什么，例如「今天涨停池和炸板率」",
 				rows: 2,

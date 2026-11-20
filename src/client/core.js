@@ -678,6 +678,68 @@ export function useAnalysisConfig() {
 
 //#endregion
 
+//#region 对话草稿（行情/选股 → 对话页）
+
+//
+// 「行情」「选股」列表里的股票没法直接拿到对话页：点行是打开详情窗，名字也选不中。
+// 这里提供一个轻量总线：列表行的 💬 按钮把「名称（代码）」写进草稿，面板收到后
+// 切到「对话」页，对话页挂载时消费草稿并预填输入框（用户还可以再改）。
+let chatDraft = "";
+const chatDraftListeners = new Set();
+
+/** 写入草稿并通知面板（面板据此切页；对话页据此预填输入框）。 */
+export function setChatDraft(text) {
+	chatDraft = String(text ?? "");
+	for (const fn of chatDraftListeners) {
+		try {
+			fn(chatDraft);
+		} catch {}
+	}
+}
+
+/** 读出草稿但不消费（面板切页用，不需要内容）。 */
+export function getChatDraft() {
+	return chatDraft;
+}
+
+/** 取出并清空草稿：对话页挂载时调用，避免下次打开还残留上一次的股票。 */
+export function consumeChatDraft() {
+	const value = chatDraft;
+	chatDraft = "";
+	return value;
+}
+
+/** 订阅草稿写入；对话页已打开时也能收到。返回取消订阅函数。 */
+export function onChatDraft(fn) {
+	chatDraftListeners.add(fn);
+	return () => chatDraftListeners.delete(fn);
+}
+
+/** 列表行「💬」的入口：把这只股票放进对话输入框。 */
+export function askChatStock(code, name) {
+	const label = name && code ? `${name}（${code}）` : name || code || "";
+	setChatDraft(`帮我看看 ${label}：最近走势、资金面和消息面怎么样？`);
+}
+
+/** 列表行尾的「💬」按钮：点它 = 把该股票放进对话页并预填问题。 */
+export function AskButton({ code, name }) {
+	return h(
+		"button",
+		{
+			className: "lkb-ask",
+			title: "放入对话",
+			"aria-label": `把 ${name ?? code} 放入对话`,
+			onClick: (e) => {
+				e.stopPropagation();
+				askChatStock(code, name);
+			},
+		},
+		"💬"
+	);
+}
+
+//#endregion
+
 //#region 主题（跟随系统 / 浅色 / 深色）
 
 //
