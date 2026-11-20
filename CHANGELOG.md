@@ -3,6 +3,16 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.11] - 2026-11-20
+
+### Fixed
+
+- **选股「扫描股票池快照」很慢**：本机对东财三台 clist 主机都是连接级失败（UND_ERR_SOCKET），而每页仍要「2 轮 × 3 主机 + 700ms 退避」，再叠加东财 1 秒限流 —— 8 页快照光重试就 60~70 秒。
+  - `emrank` 增加**主机级熔断**：连接失败的主机 5 分钟内不再重试、成功的主机提到队首；clist 冷却 60 秒 → 5 分钟；全主机不可用时立即改走新浪备用源，不再空转。
+  - 股票池抓取走独立的 `screener` 限流通道（东财 350ms / 3 并发），只覆盖快照这几页；交互请求仍保持 1 秒节奏。
+  - 股票池快照缓存 60 秒 → **5 分钟**；打开「选股」页（`/screener/meta`）时后台 `warmUniverse()` 预热，点「开始选股」时通常已命中缓存。
+  - 实测：快照阶段 **69.6s → 15.5s**（冷启动），800 只全量扫描 **136s → 44s**；预热后点「开始选股」几乎瞬时。
+
 ## [0.20.0-astock.10] - 2026-11-20
 
 ### Added
