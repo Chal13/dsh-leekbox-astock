@@ -1,13 +1,14 @@
 // 韭菜盒子 LeekBox — 客户端 bundle 源码：主面板（标签页 + 弹窗管理 + 拖拽 + 预警 toast）
 // 由 build.mjs 打包进 lib/client.js（npm run build）；不要手改产物。
 import { createRoot, h, useCallback, useEffect, useRef, useState } from "./react.js";
-import { API, api, calendarHint, closeConfirm, ConfirmDialog, confirmListeners, loadAnalysisConfig, marketOpenLabel, normCode, onToast, ToastStack, useAnalysisConfig, useInterval } from "./core.js";
+import { API, api, calendarHint, closeConfirm, ConfirmDialog, confirmListeners, loadAnalysisConfig, marketOpenLabel, normCode, onChatDraft, onToast, ToastStack, useAnalysisConfig, useInterval } from "./core.js";
 import { IndicesTab } from "./indices-tab.js";
 import { MarketTab } from "./market-tab.js";
 import { WatchlistTab } from "./watchlist-tab.js";
 import { ScreenerTab } from "./screener-tab.js";
 import { NewsTab } from "./news-tab.js";
 import { AnalysisTab } from "./analysis-tab.js";
+import { ChatTab } from "./chat-tab.js";
 import { SettingsDialog } from "./settings.js";
 import { StockDetailWindow } from "./detail.js";
 
@@ -18,6 +19,7 @@ const TABS = [
 	{ key: "screener", label: "选股" },
 	{ key: "news", label: "快讯" },
 	{ key: "analysis", label: "分析" },
+	{ key: "chat", label: "对话" },
 ];
 
 /** 标签图标：手写 24×24 描边路径（Lucide 风格）。
@@ -61,6 +63,12 @@ const TAB_ICONS = {
 	analysis: [
 		["path", { d: "M12 3.5l1.9 4.35 4.35 1.9-4.35 1.9L12 16l-1.9-4.35-4.35-1.9 4.35-1.9z" }],
 		["path", { d: "M18.5 15.5l.9 2.05 2.05.9-2.05.9-.9 2.05-.9-2.05-2.05-.9 2.05-.9z" }],
+	],
+	// 对话：气泡 + 输入线
+	chat: [
+		["path", { d: "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" }],
+		["path", { d: "M8 8.5h8" }],
+		["path", { d: "M8 11.5h5" }],
 	],
 };
 
@@ -141,6 +149,9 @@ export function LeekBoxPanel({ onClose }) {
 		window.addEventListener("pointerup", onUp);
 	};
 	const resetPos = () => setPos(null);
+	// 行情/选股列表里的「💬」把股票写进对话草稿：这里负责切到「对话」页，
+	// 对话页挂载时会自己消费草稿并预填输入框。
+	useEffect(() => onChatDraft(() => setTab("chat")), []);
 	// z 上限：必须低于确认遮罩(2147483646)与 toast(2147483647)的置顶层，给它们
 	// 各留一档余量，避免长期开大量窗口后 z 溢出到这两层之上。
 	const Z_MAX = 2147483644;
@@ -289,7 +300,9 @@ export function LeekBoxPanel({ onClose }) {
 						? h(ScreenerTab, { onOpen: openStock, watchCodes })
 						: tab === "analysis"
 							? h(AnalysisTab, { onOpen: openStock, configured: analysisCfg.configured, onOpenSettings: () => setSettingsOpen(true) })
-							: h(NewsTab, { onOpen: openStock });
+							: tab === "chat"
+								? h(ChatTab, { active: true })
+								: h(NewsTab, { onOpen: openStock });
 	return h(
 		"div",
 		{
@@ -310,7 +323,7 @@ export function LeekBoxPanel({ onClose }) {
 			h(
 				"div",
 				{ className: "lkb_head", title: "拖动移动窗口 · 双击复位", onPointerDown: onHeadPointerDown, onDoubleClick: resetPos },
-				h("span", { className: "lkb-headTitle" }, h("span", { className: "lkb-logo" }, "🥬"), "韭菜盒子"),
+				h("span", { className: "lkb-headTitle" }, h("span", { className: "lkb-logo" }, "🥬"), "韭菜盒子大A版"),
 				h(
 					"div",
 					{ className: "lkb_headRight" },
@@ -321,7 +334,7 @@ export function LeekBoxPanel({ onClose }) {
 			),
 			h(
 				"div",
-				{ className: "lkb_tabBar", role: "tablist", "aria-label": "韭菜盒子面板", onKeyDown: onTabKeyDown },
+				{ className: "lkb_tabBar", role: "tablist", "aria-label": "韭菜盒子大A版面板", onKeyDown: onTabKeyDown },
 				h(
 					"div",
 					{ className: "lkb_tabTrack" },
