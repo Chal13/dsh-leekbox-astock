@@ -25,6 +25,9 @@ export const API = {
 	analysis: "/api/leekbox/analysis/analyze",
 	analysisStream: "/api/leekbox/analysis/analyze/stream",
 	analysisModels: "/api/leekbox/analysis/models",
+	chat: "/api/leekbox/chat",
+	chatPoll: "/api/leekbox/chat/poll",
+	chatReset: "/api/leekbox/chat/reset",
 };
 
 const ERR_FALLBACK = "数据获取失败，请稍后重试";
@@ -599,8 +602,39 @@ export function ToastStack({ toasts, onDismiss }) {
 // 模型配置是「全局设置」而不是「分析页」的一部分：面板头部 ⚙️ 入口打开设置弹窗，
 // 分析页只消费「是否已配置」。这里做一份订阅式单例，让面板、设置弹窗、分析页
 // 共享同一份状态，任何一处 save/load 后其余订阅者立刻同步（模式同 toast/confirm）。
-let analysisCfg = { configured: false, baseUrl: "", model: "", maskedKey: "", api: "openai" };
+// 模型来源两种：host = 用 DSH 自己接入的模型（不需要密钥），custom = 用户自填
+// 第三方 API。默认 host：用户装好 DSH 就能直接用「AI 分析」。
+let analysisCfg = {
+	mode: "host",
+	configured: false,
+	baseUrl: "",
+	model: "",
+	maskedKey: "",
+	api: "openai",
+	host: { available: false, provider: "", model: "", reasoningEffort: "" },
+};
 const analysisCfgListeners = new Set();
+
+/** 服务端配置响应 → 前端单例形状（老服务端没有 mode 时按"填了地址就算自定义"兼容）。 */
+function analysisConfigFrom(d) {
+	const baseUrl = d?.baseUrl ?? "";
+	const model = d?.model ?? "";
+	const mode = d?.mode === "custom" ? "custom" : d?.mode === "host" ? "host" : baseUrl !== "" && model !== "" ? "custom" : "host";
+	return {
+		mode,
+		configured: d?.configured === true,
+		baseUrl,
+		model,
+		maskedKey: d?.apiKey ?? "",
+		api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
+		host: {
+			available: d?.host?.available === true,
+			provider: d?.host?.provider ?? "",
+			model: d?.host?.model ?? "",
+			reasoningEffort: d?.host?.reasoningEffort ?? "",
+		},
+	};
+}
 
 function publishAnalysisConfig(next) {
 	analysisCfg = next;
@@ -623,28 +657,14 @@ export function onAnalysisConfig(fn) {
 /** 拉取服务端配置并广播（密钥只回脱敏值）。失败保持原状态，静默。 */
 export function loadAnalysisConfig() {
 	return api(API.analysisConfig)
-		.then((d) =>
-			publishAnalysisConfig({
-				configured: d?.configured === true,
-				baseUrl: d?.baseUrl ?? "",
-				model: d?.model ?? "",
-				maskedKey: d?.apiKey ?? "",
-				api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
-			})
-		)
+		.then((d) => publishAnalysisConfig(analysisConfigFrom(d)))
 		.catch(() => {});
 }
 
 /** 保存配置并广播结果；返回 Promise<响应体>（含脱敏密钥）。 */
 export function saveAnalysisConfig(body) {
 	return api(API.analysisConfig, { method: "POST", body }).then((d) => {
-		publishAnalysisConfig({
-			configured: d?.configured === true,
-			baseUrl: d?.baseUrl ?? "",
-			model: d?.model ?? "",
-			maskedKey: d?.apiKey ?? "",
-			api: d?.api === "anthropic" ? "anthropic" : d?.api === "responses" ? "responses" : "openai",
-		});
+		publishAnalysisConfig(analysisConfigFrom(d));
 		return d;
 	});
 }
@@ -654,6 +674,68 @@ export function useAnalysisConfig() {
 	const [cfg, setCfg] = useState(analysisCfg);
 	useEffect(() => onAnalysisConfig(setCfg), []);
 	return cfg;
+}
+
+//#endregion
+
+//#region 对话草稿（行情/选股 → 对话页）
+
+//
+// 「行情」「选股」列表里的股票没法直接拿到对话页：点行是打开详情窗，名字也选不中。
+// 这里提供一个轻量总线：列表行的 💬 按钮把「名称（代码）」写进草稿，面板收到后
+// 切到「对话」页，对话页挂载时消费草稿并预填输入框（用户还可以再改）。
+let chatDraft = "";
+const chatDraftListeners = new Set();
+
+/** 写入草稿并通知面板（面板据此切页；对话页据此预填输入框）。 */
+export function setChatDraft(text) {
+	chatDraft = String(text ?? "");
+	for (const fn of chatDraftListeners) {
+		try {
+			fn(chatDraft);
+		} catch {}
+	}
+}
+
+/** 读出草稿但不消费（面板切页用，不需要内容）。 */
+export function getChatDraft() {
+	return chatDraft;
+}
+
+/** 取出并清空草稿：对话页挂载时调用，避免下次打开还残留上一次的股票。 */
+export function consumeChatDraft() {
+	const value = chatDraft;
+	chatDraft = "";
+	return value;
+}
+
+/** 订阅草稿写入；对话页已打开时也能收到。返回取消订阅函数。 */
+export function onChatDraft(fn) {
+	chatDraftListeners.add(fn);
+	return () => chatDraftListeners.delete(fn);
+}
+
+/** 列表行「💬」的入口：把这只股票放进对话输入框。 */
+export function askChatStock(code, name) {
+	const label = name && code ? `${name}（${code}）` : name || code || "";
+	setChatDraft(`帮我看看 ${label}：最近走势、资金面和消息面怎么样？`);
+}
+
+/** 列表行尾的「💬」按钮：点它 = 把该股票放进对话页并预填问题。 */
+export function AskButton({ code, name }) {
+	return h(
+		"button",
+		{
+			className: "lkb-ask",
+			title: "放入对话",
+			"aria-label": `把 ${name ?? code} 放入对话`,
+			onClick: (e) => {
+				e.stopPropagation();
+				askChatStock(code, name);
+			},
+		},
+		"💬"
+	);
 }
 
 //#endregion

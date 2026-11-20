@@ -8,3 +8,6 @@ node_modules/
 
 # local agent workspace
 .workbuddy-ai/
+
+__pycache__/
+*.pyc

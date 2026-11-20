@@ -17,7 +17,7 @@ const banner = `// 韭菜盒子 LeekBox — browser half. v${pkg.version}
 // GENERATED FILE — 由 build.mjs 从 src/client/* 打包生成，请勿手改。
 // 改代码去 src/client/，然后 npm run build。
 window.__ModuleLoader__.load({
-	id: "dsh-leekbox",
+	id: "dsh-leekbox-astock",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;

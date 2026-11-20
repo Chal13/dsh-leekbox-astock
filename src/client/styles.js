@@ -95,6 +95,11 @@ body[data-ds-dark-theme] .lkb-pct.lkb-down{background:#0f9d6e30;color:#63e6be}
 .lkb-star{cursor:pointer;background:0 0;border:none;font-size:14px;padding:2px 4px;opacity:.55}
 .lkb-star:hover{opacity:1}
 .lkb-star[data-on="true"]{opacity:1}
+/* 行尾「放入对话」按钮：和星标并列，点击不触发行本身的详情窗。 */
+.lkb-ask{cursor:pointer;background:0 0;border:none;font-size:13px;line-height:1;padding:2px 4px;margin-left:2px;opacity:.55}
+.lkb-ask:hover{opacity:1}
+/* 名称/代码允许直接选中复制；行本身仍可点开详情。 */
+.lkb-name,.lkb-code{user-select:text}
 .lkb-searchWrap{position:relative;margin-bottom:12px}
 .lkb-searchRow{display:flex;gap:8px;align-items:center;position:relative;z-index:31}
 /* Opaque underlay: some DSH skins remap --dsw-alias-bg-base to a translucent
@@ -463,6 +468,30 @@ body[data-ds-dark-theme] .lkb-anHit:hover{border-color:#6378dc66}
 .lkb-settingsActions{display:flex;align-items:center;gap:10px;margin-top:4px}
 body[data-ds-dark-theme] .lkb_settingsMask{background:rgba(0,0,0,.5)}
 body[data-ds-dark-theme] .lkb_settingsBox{background:#3a3a3c;border-color:#ffffff14}
+.lkb_chat{display:flex;flex-direction:column;height:100%;min-height:0;gap:8px}
+.lkb_chatBar{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+.lkb_chatStatus{font-size:12px;color:var(--dsw-alias-label-tertiary,#8a8f99)}
+.lkb_chatStatus[data-busy="true"]{color:var(--dsw-alias-brand-primary,#4c6ef5)}
+.lkb_chatList{flex:1;min-height:0;overflow:auto;padding:10px 4px;display:flex;flex-direction:column;gap:10px;border:1px solid var(--dsw-alias-border-l1,#e8e9ed);border-radius:12px;background:var(--dsw-alias-bg-base,#fff)}
+.lkb_chatEmpty{margin:auto;max-width:560px;text-align:center;padding:24px 12px;display:flex;flex-direction:column;gap:10px}
+.lkb_chatEmptyTitle{font-size:15px;font-weight:600}
+.lkb_chatEmptyHint{font-size:12px;color:var(--dsw-alias-label-tertiary,#8a8f99);line-height:1.6}
+.lkb_chatExamples{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.lkb_chatExample{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1,#e8e9ed);background:transparent;color:var(--dsw-alias-label-secondary,#5b606b);cursor:pointer}
+.lkb_chatExample:hover{border-color:var(--dsw-alias-brand-primary,#4c6ef5);color:var(--dsw-alias-brand-primary,#4c6ef5)}
+.lkb_chatRow{display:flex;justify-content:flex-start}
+.lkb_chatRow[data-role="user"]{justify-content:flex-end}
+.lkb_chatBubble{max-width:84%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;background:var(--dsw-alias-bg-l2,#f3f4f6);color:var(--dsw-alias-label-primary,#1c1e26)}
+.lkb_chatRow[data-role="user"] .lkb_chatBubble{background:var(--dsw-alias-brand-primary,#4c6ef5);color:#fff}
+.lkb_chatPending{font-size:12px;color:var(--dsw-alias-label-tertiary,#8a8f99);padding:0 4px}
+.lkb_chatError{font-size:12px;color:var(--dsw-alias-label-danger,#d64545);padding:0 4px}
+.lkb_chatComposer{display:flex;gap:8px;align-items:flex-end}
+.lkb_chatInput{flex:1;resize:none;box-sizing:border-box;padding:9px 11px;border-radius:10px;border:1px solid var(--dsw-alias-border-l1,#e8e9ed);background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary,#1c1e26);font-size:13px;line-height:1.5;font-family:inherit}
+.lkb_chatInput:focus{outline:none;border-color:var(--dsw-alias-brand-primary,#4c6ef5)}
+.lkb_chatSend{flex:none;height:38px;padding:0 16px;border-radius:10px;border:none;background:var(--dsw-alias-brand-primary,#4c6ef5);color:#fff;font-size:13px;cursor:pointer}
+.lkb_chatSend:disabled{opacity:.5;cursor:not-allowed}
+body[data-ds-dark-theme] .lkb_chatList,body[data-ds-dark-theme] .lkb_chatInput{background:#2f2f31;border-color:#ffffff14}
+body[data-ds-dark-theme] .lkb_chatBubble{background:#3a3a3c}
 `;
 (function injectStyle() {
 	if (typeof document === "undefined") return;

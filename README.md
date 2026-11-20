@@ -76,7 +76,7 @@ ln -s "<仓库路径>" "$DSH_HOME/profiles/web/node_modules/dsh-leekbox"
 
 细节与常见坑见[安装](#安装)。要求 DSH ≥ 0.1.1-rc.1、**web profile**。
 
-## 六个标签页
+## 七个标签页
 
 | Tab | 功能 |
 | --- | --- |
@@ -86,6 +86,7 @@ ln -s "<仓库路径>" "$DSH_HOME/profiles/web/node_modules/dsh-leekbox"
 | 🔍 选股 | 两种模式：**评分选股**（按价格/涨跌幅/换手率筛选 + 13 项技术信号勾选 + 加权评分排序）和 **多策略交叉选股**（7 个预设策略的并行交集，个股需同时命中多个策略，按命中数排序）|
 | 📰 快讯 | 新浪 / 东财 / 金十 三源聚合 7×24 快讯，来源可筛选，重要资讯红色高亮，60 秒自动刷新，可点相关股票直达详情 |
 | 🤖 分析 | **AI 个股分析**：搜索选股后由服务端汇总实时行情 + 近 60 日 K 线概览 + F10 财务摘要，调模型生成结构化中文分析（含风险提示与免责声明，支持复制 / 重新生成）。模型在面板头部 ⚙️ **全局设置**里配置：**多服务商下拉**（DeepSeek / OpenAI / **Anthropic Claude** / Moonshot Kimi / 智谱 / 通义 / b.ai 等；OpenAI 兼容 + Anthropic 原生两种协议）+ **模型下拉**（可一键「获取模型」拉取真实列表，也可手填），持久化在 `$DSH_HOME/.leekbox-analysis.json`，密钥仅服务端保存、界面只显示脱敏值 |
+| 💬 对话 | **插件内直接对话**：面板里开一个 DSH Agent 会话，已挂载 astock 能力（龙虎榜 / 两融 / 涨停池 / 研报 / 宏观等），问一句就能取数；支持「新对话」重置。对话由宿主侧 `ctx.agents` 驱动，不跳主窗口 |
 
 行情页顶部保留**连板梯队**（2板/3板/…及最高板数），可展开涨停池列表（点击直达个股详情）。
 
@@ -101,6 +102,21 @@ ln -s "<仓库路径>" "$DSH_HOME/profiles/web/node_modules/dsh-leekbox"
 - AI 个股分析：模型由用户自行配置（OpenAI 兼容接口，如 OpenAI / DeepSeek 等），个股数据复用上面的行情 / K线 / F10 源汇总后送入模型；调用走服务端 `/chat/completions` 代理，密钥明文只在服务端落盘、绝不下发浏览器
 
 所有数据由插件服务端（web profile 内的 cordis 插件）代理抓取并标准化，浏览器端同源调用 `/api/leekbox/*`，仅限本机 loopback 访问。数据仅供研究参考，不构成投资建议。
+
+## Agent 工具（a-stock-data）
+
+本 fork 把 [a-stock-data](https://github.com/simonlin1212/a-stock-data) skill 的端点按能力分类注册为 agent 工具（6 层 + 目录），在 DSH 对话中直接取数：
+
+- `astock_signal` — 龙虎榜 / 解禁 / 板块资金流 / 行业排名
+- `astock_capital` — 两融 / 大宗 / 股东户数 / 分红 / 120 日资金流 / 筹码分布 CYQ / ETF 份额
+- `astock_limitup` — 涨停四池 / 涨停原因 / 打板情绪 / 监控池 / 日内异动
+- `astock_event` — 业绩预告 / 机构调研 / 增减持 / 回购 / 质押 / 新股日历
+- `astock_research` — 个股与行业研报 / 一致预期 EPS / 新浪研报列表
+- `astock_macro` — 社融 / PMI / 中债收益率曲线 / 回购定盘 / LPR / 宏观日历
+- `astock_catalog` — 查「层 → 端点 → 参数」
+
+服务端另提供 `GET /api/leekbox/capabilities`（机器可读清单）与 `GET /api/leekbox/cap?id=<action>`。
+详见 [docs/astock.md](docs/astock.md)。
 
 ## 交易时段与交易日历
 
