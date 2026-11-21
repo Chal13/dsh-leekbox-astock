@@ -22,6 +22,7 @@ const SUITES = [
 	"astock-tools-test.mjs",
 	"analysis-tab-test.mjs",
 	"analysis-data-test.mjs",
+	"chat-history-test.mjs",
 	"p0-universe-delta-test.mjs",
 	"p0-position-alerts-test.mjs",
 	"p0-minute-fflow-test.mjs",

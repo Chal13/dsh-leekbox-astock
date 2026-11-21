@@ -194,6 +194,7 @@ function toToolSchema(def) {
 | 17 | 全局限流把批量任务拖死 | 选股 800 只 × 东财 1 次/秒 = 10+ 分钟，界面像卡死 | 给批量任务独立 `profile` 队列 + 受限并发；东财本身**不要**加速（IP 封禁风险） |
 | 18 | 全局 running 标志泄漏 | 异常/刷新后 `running=true` 永不复位，功能永久报忙 | 进度快照带 `updatedAt`，超过 5 分钟无推进视为僵死并允许接管 |
 | 19 | 东财 clist 主机全被 RST | 每页仍「2 轮×3 主机+700ms 退避」，8 页快照 60s+ | 主机级熔断（失败 5 分钟不重试）+ 全挂立即切备用源；快照缓存 5 分钟 + 打开页面后台预热 |
+| 20 | 手搓 assistant 消息缺 `source` | `Cannot read properties of undefined (reading 'replayState')` | 走 `llm.stream` 时 assistant 消息必须有 `source:{kind:'model',provider,model}`（和 `id`）；user 消息可精简 |
 
 ---
 

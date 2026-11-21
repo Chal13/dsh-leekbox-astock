@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.20.0-astock.12] - 2026-11-21
+
+### Fixed
+
+- **面板对话报 `Cannot read properties of undefined (reading 'replayState')`**：对话历史里的 assistant 消息此前只转成 `{ role, content }`，而 DSH 发请求前会在 `LlmRuntime.forAdapter()` 里读 `message.source.replayState`，缺 `source` 直接抛错。现在历史转换（`historyMessages()`）给 assistant 消息补上 `id` 与 `source: { kind: "model", provider, model }`；新增 `chat-history-test.mjs` 回归（含空历史与 forAdapter 访问路径模拟）。
+
 ## [0.20.0-astock.11] - 2026-11-20
 
 ### Fixed
